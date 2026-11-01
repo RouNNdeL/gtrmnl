@@ -68,9 +68,11 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
             client = None
             st.save(cfg.state_file)
         if not cfg.token_file.is_file() or st.auth_failed:
-            # No tokens, or dead ones: wait for `gtrmnl login` or new env
-            # instead of hammering Garmin's SSO.
-            stop.wait(60)
+            # No tokens, or dead ones: wait for `gtrmnl login`, new env or an
+            # MFA code instead of hammering Garmin's SSO. A pending MFA login
+            # is checked more often so a code is used well before it expires.
+            st.save(cfg.state_file)
+            stop.wait(15 if how == bootstrap.MFA_PENDING else 60)
             continue
         try:
             client, out = service.run_once(cfg, st, client)
@@ -88,8 +90,10 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def _bootstrap_once(cfg: Config, st: State) -> None:
-    bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
+    how = bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
     st.save(cfg.state_file)
+    if how == bootstrap.MFA_PENDING and not cfg.token_file.is_file():
+        raise garmin.AuthError("waiting for the MFA code Garmin sent (see the log above)")
 
 
 def cmd_once(cfg: Config, args: argparse.Namespace) -> int:

@@ -49,11 +49,15 @@ for at least 15 min. If Garmin auth dies it sends `err: "auth"` once with
 | `GARMIN_TOKENS_FILE` | | Optional: a `garmin_tokens.json` to seed `/data/tokens` (or `GARMIN_TOKENS` with the JSON itself) |
 | `GARMIN_EMAIL` | | Optional: for an unattended password login, and the default for `gtrmnl login` |
 | `GARMIN_PASSWORD_FILE` | | Optional: file with the Garmin password (or `GARMIN_PASSWORD`, which logs a warning) |
+| `GARMIN_MFA_CODE_FILE` | | Optional, MFA: a file the collector re-reads for the one-time code while it waits |
+| `GARMIN_MFA_CODE` | | Optional, MFA: the one-time code; set it and restart the app |
+| `GARMIN_TOTP_SECRET_FILE` | | Optional, MFA with an authenticator app: its secret (base32 or `otpauth://` URI), or `GARMIN_TOTP_SECRET` |
+| `GARMIN_MFA_WAIT_MINUTES` | 15 | How long a pending MFA login waits for its code before a new one is requested |
 
 Every secret has a `_FILE` variant that wins over the plain variable. Use
 the `_FILE` form so the value does not show up in `docker inspect`.
 
-### Garmin login: three ways
+### Garmin login
 
 Tokens live in `/data/tokens/garmin_tokens.json` and refresh on their own. A
 new login is needed only when Garmin revokes them. Get the first set in one of
@@ -70,15 +74,55 @@ these ways:
    reaches the deployment.
 3. **Password:** set `GARMIN_EMAIL` and `GARMIN_PASSWORD_FILE`. When there
    are no working tokens the collector logs in once and saves tokens, then
-   logs a reminder to remove the variables. Accounts with **MFA cannot use
-   this**: the login stops with an "MFA" error instead of waiting for a code.
-   A rejected password is not retried until the container restarts, so a typo
-   cannot lock the account. Nothing derived from the password is written to
-   disk. If the variables stay set, the collector logs in again by itself
-   after Garmin revokes the tokens, at the cost of keeping the password in
-   the app's configuration (python-garminconnect advises against that).
+   logs a reminder to remove the variables. A rejected password is not
+   retried until the container restarts, so a typo cannot lock the account.
+   Nothing derived from the password is written to disk. If the variables
+   stay set, the collector logs in again by itself after Garmin revokes the
+   tokens, at the cost of keeping the password in the app's configuration
+   (python-garminconnect advises against that).
 
 If both a seed and a password are set, the seed is used first.
+
+#### Password login with MFA
+
+**Code by email or SMS** (or typed from an app): the login happens in two steps.
+
+1. Set `GARMIN_EMAIL`, `GARMIN_PASSWORD_FILE` and, ideally,
+   `GARMIN_MFA_CODE_FILE` (for example `/data/mfa_code`). Start the app.
+2. The collector logs in, Garmin sends a code, and the log says
+   `Garmin asked for an MFA code (by email)`. The half-finished login is saved
+   in `/data/tokens/mfa_pending.json` (mode 0600; it holds Garmin session
+   cookies, so treat it like a password).
+3. Within `GARMIN_MFA_WAIT_MINUTES` (15), supply the code:
+   - with `GARMIN_MFA_CODE_FILE`: write it to that file, e.g. from the TrueNAS
+     shell `echo 123456 > /mnt/tank/apps/gtrmnl/mfa_code`. It is picked up
+     within 15 s, no restart needed; or
+   - set `GARMIN_MFA_CODE=123456` in the app and let it redeploy. The restarted
+     container finishes the saved login.
+4. The log says `Garmin tokens saved`. Remove the code (and the password, if
+   you like): a code is used once and is ignored afterwards anyway.
+
+Safeguards:
+- A code is never sent twice, and a code left over from an earlier login is never
+  used for a new one.
+- A rejected code is reported and the collector keeps waiting for a new one.
+- A pending login expires after 15 min and a new code is requested, but at most
+  3 per container start, so an unanswered prompt cannot flood your inbox.
+
+When Garmin revokes the tokens later, the same happens again: a new code
+arrives and the collector waits for it.
+
+**Authenticator app (TOTP):** fully unattended. Put the app's secret (the
+base32 text shown under the QR code when you set it up, or the whole
+`otpauth://` URI) in a file and point `GARMIN_TOTP_SECRET_FILE` at it. The
+collector generates the 6-digit code itself (RFC 6238), so it can also log in
+again on its own after Garmin revokes the tokens.
+
+**Trade-off:** with the password and the TOTP secret on the same server,
+anyone who can read that app's configuration has both factors. For that
+deployment it is effectively a single factor again. Use it if unattended
+recovery matters more to you than that; otherwise remove both once the tokens
+are saved.
 
 ### TrueNAS custom app
 

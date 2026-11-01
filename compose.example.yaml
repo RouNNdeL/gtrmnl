@@ -13,7 +13,11 @@ services:
       # Garmin login without a shell (optional, see README "Garmin login"):
       # GARMIN_TOKENS_FILE: /run/secrets/garmin_tokens.json  # tokens from `gtrmnl login`
       # GARMIN_EMAIL: you@example.com                         # or a password login,
-      # GARMIN_PASSWORD_FILE: /run/secrets/garmin_password    # accounts without MFA only
+      # GARMIN_PASSWORD_FILE: /run/secrets/garmin_password
+      # With MFA, either a code file you write the emailed/SMS code to:
+      # GARMIN_MFA_CODE_FILE: /data/mfa_code
+      # or, for an authenticator app, its secret (fully unattended):
+      # GARMIN_TOTP_SECRET_FILE: /run/secrets/garmin_totp
     volumes:
       - /mnt/tank/apps/gtrmnl:/data         # host-path dataset
     read_only: true

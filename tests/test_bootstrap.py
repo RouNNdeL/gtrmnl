@@ -158,11 +158,12 @@ def test_wrong_password_not_retried(tmp_path, lib):
     assert lib.count(("password-login", "me@x")) == 1
 
 
-def test_mfa_account_cannot_log_in_unattended(tmp_path, lib, caplog):
+def test_mfa_account_waits_for_a_code(tmp_path, lib):
+    # Without a code or TOTP secret, the login is parked until a code arrives
+    # (details in test_bootstrap_mfa.py); no code is invented or prompted for.
     c = cfg(tmp_path, garmin_email="mfa@x", garmin_password="right")
-    with caplog.at_level(logging.ERROR):
-        assert bootstrap.ensure_tokens(c, State(), bootstrap.Memo()) == bootstrap.MISSING
-    assert "MFA" in caplog.text and not c.token_file.exists()
+    assert bootstrap.ensure_tokens(c, State(), bootstrap.Memo()) == bootstrap.MFA_PENDING
+    assert (c.token_dir / bootstrap.PENDING_FILE).is_file() and not c.token_file.exists()
     assert not any(isinstance(x, tuple) and x[0] == "mfa" for x in lib)
 
 

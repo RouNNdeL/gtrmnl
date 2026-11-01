@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .totp import Totp, TotpError
+
 # TRMNL+ allows 10 kB per push. Stay a little under it; a 422 lowers it.
 DEFAULT_PAYLOAD_LIMIT = 9800
 
@@ -83,6 +85,26 @@ class Config:
     garmin_email: str | None = field(default=None, repr=False)
     garmin_password: str | None = field(default=None, repr=False)
     garmin_password_source: str | None = None
+    # MFA: an authenticator-app secret (fully unattended), or a one-time code
+    # from GARMIN_MFA_CODE (fixed at start) / GARMIN_MFA_CODE_FILE (re-read).
+    garmin_totp: Totp | None = field(default=None, repr=False)
+    garmin_mfa_code_env: str | None = field(default=None, repr=False)
+    garmin_mfa_code_file: Path | None = None
+    mfa_wait_minutes: int = 15
+
+    def mfa_code(self) -> str | None:
+        """The current one-time MFA code, if one was supplied.
+
+        The file is read on every call, so a code can be dropped in without
+        restarting the container. A missing file just means "no code yet".
+        """
+        if self.garmin_mfa_code_file is not None:
+            try:
+                val = self.garmin_mfa_code_file.read_text(encoding="utf-8").strip()
+            except OSError:
+                val = ""
+            return val.replace(" ", "") or None
+        return self.garmin_mfa_code_env
 
     @property
     def token_dir(self) -> Path:
@@ -103,6 +125,12 @@ class Config:
     @classmethod
     def from_env(cls) -> Config:
         password, pw_source = secret("GARMIN_PASSWORD")
+        totp_text, _ = secret("GARMIN_TOTP_SECRET")
+        try:
+            totp = Totp.parse(totp_text) if totp_text else None
+        except TotpError as e:
+            raise ConfigError(f"GARMIN_TOTP_SECRET: {e}") from None
+        code_file = os.environ.get("GARMIN_MFA_CODE_FILE", "").strip()
         tz_name = os.environ.get("TZ", "Europe/Warsaw").strip() or "Europe/Warsaw"
         try:
             tz = ZoneInfo(tz_name)
@@ -123,4 +151,8 @@ class Config:
             garmin_email=os.environ.get("GARMIN_EMAIL", "").strip() or None,
             garmin_password=password,
             garmin_password_source=pw_source,
+            garmin_totp=totp,
+            garmin_mfa_code_env=os.environ.get("GARMIN_MFA_CODE", "").replace(" ", "") or None,
+            garmin_mfa_code_file=Path(code_file) if code_file else None,
+            mfa_wait_minutes=_int("GARMIN_MFA_WAIT_MINUTES", 15, minimum=5),
         )
