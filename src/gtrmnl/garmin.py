@@ -6,6 +6,7 @@ turns them into the model.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import logging
@@ -25,6 +26,10 @@ class AuthError(Exception):
 
 class MfaRequired(AuthError):
     """The account asks for an MFA code and nobody is there to type it."""
+
+
+class MfaStateInvalid(AuthError):
+    """The saved pending MFA login cannot be resumed; start a new one."""
 
 
 class TransientError(Exception):
@@ -59,38 +64,78 @@ def _prepare_dir(token_dir: Path) -> None:
     os.chmod(token_dir, 0o700)
 
 
-def password_login(
-    token_dir: Path,
-    email: str,
-    password: str,
-    ask_mfa: Callable[[], str] | None = None,
-) -> None:
-    """Full login with credentials; writes tokens only, never the password.
-
-    Without `ask_mfa` (unattended) an account that wants an MFA code raises
-    MfaRequired instead of blocking.
-    """
-    gc = _lib()
-    _prepare_dir(token_dir)
-    client = gc.Garmin(email, password, return_on_mfa=True)
+@contextlib.contextmanager
+def _login_errors(gc: Any):
     try:
-        status, state = client.login()
-        if status == "needs_mfa":
-            if ask_mfa is None:
-                raise MfaRequired(
-                    "the account needs an MFA code: run `gtrmnl login` or seed tokens "
-                    "with GARMIN_TOKENS_FILE"
-                )
-            client.resume_login(state, ask_mfa().strip())
+        yield
     except gc.GarminConnectAuthenticationError as e:
         raise AuthError(str(e)) from None
     except gc.GarminConnectTooManyRequestsError as e:
         raise TransientError(f"rate limited: {e}") from None
     except gc.GarminConnectConnectionError as e:
         raise TransientError(f"connection error: {type(e).__name__}") from None
+
+
+def _save_tokens(client: Any, token_dir: Path) -> None:
     client.client.dump(str(token_dir))
     # Prove the stored tokens work on their own.
     connect(token_dir)
+
+
+def begin_login(
+    token_dir: Path,
+    email: str,
+    password: str,
+    ask_mfa: Callable[[], str] | None = None,
+) -> dict | None:
+    """Password login. Writes tokens only, never the password.
+
+    When Garmin asks for an MFA code: with `ask_mfa` the code is requested
+    and the login completed here; without it, Garmin sends the code (email or
+    SMS) and the pending login is returned as JSON-serializable state for
+    finish_login(). It holds SSO session cookies: store it like a password.
+    Returns None once tokens are saved.
+    """
+    gc = _lib()
+    _prepare_dir(token_dir)
+    client = gc.Garmin(email, password, return_on_mfa=True)
+    with _login_errors(gc):
+        status, state = client.login()
+        if status == "needs_mfa":
+            if ask_mfa is None:
+                return state
+            client.resume_login(state, ask_mfa().strip())
+    _save_tokens(client, token_dir)
+    return None
+
+
+def finish_login(token_dir: Path, state: dict, code: str) -> None:
+    """Complete a login begun by begin_login(), possibly in another process."""
+    gc = _lib()
+    _prepare_dir(token_dir)
+    client = gc.Garmin()
+    try:
+        with _login_errors(gc):
+            client.resume_login(state, code.strip())
+    except AuthError as e:
+        if "client_state" in str(e):
+            raise MfaStateInvalid(str(e)) from None
+        raise
+    _save_tokens(client, token_dir)
+
+
+def password_login(
+    token_dir: Path,
+    email: str,
+    password: str,
+    ask_mfa: Callable[[], str] | None = None,
+) -> None:
+    """Login that must finish now: raises MfaRequired if a code is needed."""
+    if begin_login(token_dir, email, password, ask_mfa) is not None:
+        raise MfaRequired(
+            "the account needs an MFA code: set GARMIN_MFA_CODE_FILE or "
+            "GARMIN_TOTP_SECRET_FILE, run `gtrmnl login`, or seed tokens"
+        )
 
 
 # Kept for the interactive `gtrmnl login` command.

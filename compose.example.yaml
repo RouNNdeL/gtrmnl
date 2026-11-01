@@ -1,7 +1,9 @@
 # Example for `docker compose` or a TrueNAS "Install via YAML" custom app.
 services:
   gtrmnl:
-    image: ghcr.io/rounndel/gtrmnl:0.1.0   # pin a release tag
+    # `latest` follows master. To pin, use a published sha-<commit> tag
+    # (see the package's page on GitHub); version tags appear once v* is tagged.
+    image: ghcr.io/rounndel/gtrmnl:latest
     restart: unless-stopped
     user: "568:568"                         # owner of the /data dataset
     environment:
@@ -13,7 +15,12 @@ services:
       # Garmin login without a shell (optional, see README "Garmin login"):
       # GARMIN_TOKENS_FILE: /run/secrets/garmin_tokens.json  # tokens from `gtrmnl login`
       # GARMIN_EMAIL: you@example.com                         # or a password login,
-      # GARMIN_PASSWORD_FILE: /run/secrets/garmin_password    # accounts without MFA only
+      # GARMIN_PASSWORD_FILE: /run/secrets/garmin_password
+      # With MFA by email/SMS: the first start exits after Garmin sends a code;
+      # add it here and start again.
+      # GARMIN_MFA_CODE: "123456"
+      # Or, for an authenticator app, its secret (fully unattended):
+      # GARMIN_TOTP_SECRET_FILE: /run/secrets/garmin_totp
     volumes:
       - /mnt/tank/apps/gtrmnl:/data         # host-path dataset
     read_only: true

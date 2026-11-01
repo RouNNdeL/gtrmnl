@@ -10,6 +10,7 @@ import logging
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 from . import bootstrap, garmin, normalize, payload, service
@@ -18,6 +19,8 @@ from .sanitize import Sanitizer
 from .state import State
 
 log = logging.getLogger("gtrmnl")
+# Exit status while a login waits for GARMIN_MFA_CODE (EX_TEMPFAIL).
+EXIT_MFA = 75
 
 
 def _setup_logging(level: str) -> None:
@@ -59,17 +62,25 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
     memo = bootstrap.Memo()
     while not stop.is_set():
         st = State.load(cfg.state_file)
+        st.last_loop = time.time()  # heartbeat for `gtrmnl health`
         try:
             how = bootstrap.ensure_tokens(cfg, st, memo)
         except Exception:
             log.exception("token bootstrap failed")
             how = bootstrap.MISSING
+        if how == bootstrap.MFA_PENDING:
+            # The code Garmin sent comes back through the environment, which
+            # only changes on a new start: exit and let the user restart.
+            st.save(cfg.state_file)
+            log.warning("exiting until GARMIN_MFA_CODE is set")
+            return EXIT_MFA
         if how in (bootstrap.SEEDED, bootstrap.PASSWORD):
             client = None
             st.save(cfg.state_file)
         if not cfg.token_file.is_file() or st.auth_failed:
             # No tokens, or dead ones: wait for `gtrmnl login` or new env
             # instead of hammering Garmin's SSO.
+            st.save(cfg.state_file)
             stop.wait(60)
             continue
         try:
@@ -88,8 +99,10 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
 
 
 def _bootstrap_once(cfg: Config, st: State) -> None:
-    bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
+    how = bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
     st.save(cfg.state_file)
+    if how == bootstrap.MFA_PENDING:
+        raise garmin.AuthError("waiting for GARMIN_MFA_CODE (see the log above)")
 
 
 def cmd_once(cfg: Config, args: argparse.Namespace) -> int:

@@ -22,6 +22,7 @@ class State:
     last_error: str | None = None
     last_size: int | None = None
     seed_hash: str | None = None  # fingerprint of the last GARMIN_TOKENS seeded
+    last_loop: float | None = None  # heartbeat: start of the latest loop iteration
 
     @classmethod
     def load(cls, path: Path) -> State:

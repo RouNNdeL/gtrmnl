@@ -133,12 +133,27 @@ def run_once(
 
 
 def healthy(cfg: Config, st: State, now_ts: float | None = None) -> tuple[bool, str]:
+    """Docker healthcheck: fail only on what a restart can fix.
+
+    That is a collector loop that stopped making progress (a hung call, a
+    wedged process). Missing or expired Garmin tokens, a Garmin or TRMNL
+    outage are reported but do not fail: a restart would not fix them, and
+    on TrueNAS an unhealthy app blocks the shell needed for `gtrmnl login`.
+    The screen shows those problems itself (login banner, stale data).
+    """
     now_ts = now_ts or time.time()
-    if st.auth_failed:
-        return False, "Garmin auth failed: run `gtrmnl login`"
-    if st.last_success is None:
-        return False, "no successful run yet"
-    age = now_ts - st.last_success
+    if st.last_loop is None:
+        return False, "the collector loop has not started"
+    age = now_ts - st.last_loop
     if age > 2 * cfg.interval_minutes * 60 + 300:
-        return False, f"last success {int(age // 60)} min ago"
-    return True, "ok"
+        return False, f"the collector loop is stuck: last iteration {int(age // 60)} min ago"
+    notes = []
+    if st.auth_failed or not cfg.token_file.is_file():
+        notes.append("waiting for a Garmin login (run `gtrmnl login`)")
+    elif st.last_success is None:
+        notes.append("no successful cycle yet")
+    else:
+        notes.append(f"last success {int((now_ts - st.last_success) // 60)} min ago")
+    if st.last_error:
+        notes.append(f"last error: {st.last_error}")
+    return True, "ok: " + "; ".join(notes)

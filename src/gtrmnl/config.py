@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .totp import Totp, TotpError
+
 # TRMNL+ allows 10 kB per push. Stay a little under it; a 422 lowers it.
 DEFAULT_PAYLOAD_LIMIT = 9800
 
@@ -83,6 +85,11 @@ class Config:
     garmin_email: str | None = field(default=None, repr=False)
     garmin_password: str | None = field(default=None, repr=False)
     garmin_password_source: str | None = None
+    # MFA: an authenticator-app secret (fully unattended), or the one-time
+    # code Garmin sent, supplied on the next container start.
+    garmin_totp: Totp | None = field(default=None, repr=False)
+    garmin_mfa_code: str | None = field(default=None, repr=False)
+    garmin_mfa_code_source: str | None = None
 
     @property
     def token_dir(self) -> Path:
@@ -103,6 +110,12 @@ class Config:
     @classmethod
     def from_env(cls) -> Config:
         password, pw_source = secret("GARMIN_PASSWORD")
+        totp_text, _ = secret("GARMIN_TOTP_SECRET")
+        try:
+            totp = Totp.parse(totp_text) if totp_text else None
+        except TotpError as e:
+            raise ConfigError(f"GARMIN_TOTP_SECRET: {e}") from None
+        mfa_code, mfa_source = secret("GARMIN_MFA_CODE")
         tz_name = os.environ.get("TZ", "Europe/Warsaw").strip() or "Europe/Warsaw"
         try:
             tz = ZoneInfo(tz_name)
@@ -123,4 +136,7 @@ class Config:
             garmin_email=os.environ.get("GARMIN_EMAIL", "").strip() or None,
             garmin_password=password,
             garmin_password_source=pw_source,
+            garmin_totp=totp,
+            garmin_mfa_code=mfa_code.replace(" ", "") if mfa_code else None,
+            garmin_mfa_code_source=mfa_source,
         )
