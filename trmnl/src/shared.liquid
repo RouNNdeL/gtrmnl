@@ -101,10 +101,10 @@ Icons: Material Design Icons (Apache 2.0).
       assign a_rate = a.d | times: 3.6 | divided_by: a_mt | round: 1
       assign a_rate_unit = "km/h"
     elsif a.c == "swim"
-      assign a_rate_s = a_mt | times: 100 | divided_by: a.d | round
+      assign a_rate_s = a_mt | times: 100.0 | divided_by: a.d | round
       assign a_rate_unit = "/100m"
     else
-      assign a_rate_s = a_mt | times: 1000 | divided_by: a.d | round
+      assign a_rate_s = a_mt | times: 1000.0 | divided_by: a.d | round
       assign a_rate_unit = "/km"
     endif
   endif
