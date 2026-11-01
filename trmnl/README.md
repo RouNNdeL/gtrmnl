@@ -39,8 +39,7 @@ drawn 7 px wide over the framework's contrast casing. If a payload had to drop
 
 Every full-size screen keeps the activity list on the left (framework
 `item`s; the sport icon sits inline in the title, at the title's size) and puts
-the chosen panel on the right. The title bar carries Garmin's logo with
-"Connect".
+the chosen panel on the right. The title bar carries Garmin's logo.
 
 - **Latest activity:** route plus 6 stat tiles (8 without a route), chosen per
   sport (pace for runs, speed for rides, ascent for hikes, calories and heart

@@ -158,22 +158,29 @@ Args: c (sport), tw, lw (km), ltd (last week's km by now), h (bar area px).
   <div class="gt-cmp-vals"><span class="label label--small">{{ tw }} km</span><span class="label label--small">{{ lw }} km</span></div>
 </div>{% endtemplate %}
 {% template gt_bar %}{% comment %}
-Title bar: Garmin's logo with "Connect", the screen name on the right.
+Title bar: Garmin's logo, the screen name on the right.
 Args: instance.
 {% endcomment %}<div class="title_bar">
-  <span class="gt-brand">{% render "gt_logo", h: 16 %}</span>
-  <span class="title">Connect</span>
+  <span class="gt-brand">{% render "gt_logo", h: 18 %}</span>
   <span class="instance">{{ instance }}</span>
 </div>{% endtemplate %}
 {% template gt_stat %}{% comment %}
-One stat: framework item with meta bar, stat icon, big value and label.
-Args: n (icon), v (value), u (unit), l (label), size (value size), icon (px).
-{% endcomment %}<div class="item item--emphasis-2">
+One stat, like STRMNL's: a framework item with its meta bar, the value with
+its unit at the same size ("81.2km", "142 bpm") and the label under it.
+Args: v (value), u (unit), l (label), size (value size). n and icon are
+accepted and ignored, so callers can keep passing them.
+{% endcomment %}{%- liquid
+  assign spaced = false
+  if u == "bpm" or u == "kcal" or u == "ms"
+    assign spaced = true
+  endif
+  # Liquid drops blocks that hold only whitespace: print the space as output.
+-%}
+<div class="item item--emphasis-2">
   <div class="meta"></div>
-  <div class="icon">{% render "gt_sym", n: n, size: icon %}</div>
   <div class="content">
-    <span class="value value--{{ size | default: 'small' }} value--tnums gt-nowrap">{% if v == blank %}-{% else %}{{ v }}{% if u != blank %}<span class="gt-unit">{{ u }}</span>{% endif %}{% endif %}</span>
-    <span class="label label--small gt-nowrap">{{ l }}</span>
+    <span class="value value--{{ size | default: 'small' }} value--tnums gt-nowrap">{% if v == blank %}-{% else %}{{ v }}{% if u != blank %}{% if spaced %}{{ " " }}{% endif %}{{ u }}{% endif %}{% endif %}</span>
+    <span class="label gt-nowrap">{{ l }}</span>
   </div>
 </div>{% endtemplate %}
 {% template gt_route %}{% comment %}
