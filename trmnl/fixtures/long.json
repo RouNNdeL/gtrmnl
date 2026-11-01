@@ -36,6 +36,7 @@
    3,
    376
   ],
+  "p": "odx}Hoof_C}_AdXsi@gtBo`A}u@eK_aCcfA_}@cnA_wDc]ytAal@wtH_lBclImiActAyjAuk@oyAobCi}@_t@cfAdz@ou@mOef@}z@ugAcdFijDiyEk[`He\\ys@y`AuyEhqA_qDmD}kIfm@cqEqkBomCyb@`CmfAkbB{}BxOwjBmxAi_EeTawDzcF}zAhwEetDb~FmsIn~PxJxh@pqAhqAcVheEkeApb@s~Aml@}Ay_HcYkzDo{BmgB{nAm}Hkw@swBgjAka@myCjnE}NlcA}kAde@atB`|Bot@st@i[qsBit@fVyk@aVe~BCtycBrubA|kPpiJz[oTk^dq@n@{]xCvj@vc@iIc_@zMla@yTqYzWxWcZ{j@mMnF_UfBhh@tTpS_W_Dra@iM_\\pR}Jmn@hTpq@uTyR|U`OkWm^jJx]oE}z@yBzh@vJmq@mJx[na@aRmM}JpUvU}X_WdRrOab@jBlPuRmJtW",
   "h": "129,165,ACCHMMQVVYchhlusvz289698840zx40suqoommgljhgljolmomoquxz0z0698689888640zzvxsusomjjjlmlljjlosqqvvxzz2466089898_94zz0vvvsss"
  },
  "wk": {
@@ -58,39 +59,60 @@
    60,
    1,
    60
+  ],
+  "hike": [
+   0,
+   0,
+   0
+  ],
+  "lhike": [
+   0,
+   0,
+   0
   ]
  },
  "d7": "0,0,8.2,7.3,12.1,7.4,214",
+ "d14": ",,,b60,,r9,,,,r8.2,b7.3,r12.1,b7.4,b214",
  "rec": [
   [
    "ride",
    1793430000,
    7400,
-   1480
+   1480,
+   "Commute",
+   70
   ],
   [
    "run",
    1793340000,
    12100,
-   3667
+   3667,
+   "Tempo",
+   62
   ],
   [
    "ride",
    1793257200,
    7350,
-   1470
+   1470,
+   "Commute",
+   84
   ],
   [
    "run",
    1793167200,
    8200,
-   2485
+   2485,
+   "Recovery run",
+   46
   ],
   [
    "run",
    1792818000,
    9000,
-   2727
+   2727,
+   "Long run",
+   104
   ]
  ],
  "w": {

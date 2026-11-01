@@ -180,7 +180,8 @@ def _call(fn: Callable[..., Any], *args: Any, **kw: Any) -> Any:
 def fetch_raw(client: Any, today: dt.date) -> dict:
     """Everything except per-activity details. About 7 API calls."""
     iso = today.isoformat()
-    since = normalize.week_start(today) - dt.timedelta(days=7)
+    # Last week's Monday, and at least 14 days for the activity calendar.
+    since = min(normalize.week_start(today) - dt.timedelta(days=7), today - dt.timedelta(days=13))
     acts = _call(client.get_activities_by_date, since.isoformat(), iso)
     if acts is None:
         raise TransientError("activity list unavailable")

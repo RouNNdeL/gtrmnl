@@ -172,3 +172,12 @@ def test_series_time_base():
     timer = normalize.extract_series(d, moving=False)
     assert not timer["moving_time"]
     assert max(timer["t"]) > 2.5 * max(normalize.extract_series(d)["t"])
+
+
+def test_d14_marks_future_days(tmp_path):
+    raw, _ = scenario("ride")
+    acts = [normalize.summary(a) for a in raw["activities"]]
+    wednesday = NOW - dt.timedelta(days=4)
+    d14 = normalize.totals(acts, wednesday, TZ)["d14"]
+    assert d14[10:] == ["future"] * 4  # Thu..Sun of this week
+    assert d14[9] is None or isinstance(d14[9], tuple)

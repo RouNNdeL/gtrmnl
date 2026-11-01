@@ -7,12 +7,13 @@
 //   1. the framework runtime finished (TRMNL_PLUGINS_READY)
 //   2. no view overflows its box; no element sticks out of its view
 //   3. no Liquid error, "{{", "{%", "undefined" or "NaN" in the text
-//   4. no text truncated (an .gt-ellip or nowrap element wider than its box)
+//   4. no text truncated (except .gt-clip: user text clipped on purpose)
 //   5. no SVG path or icon without data; no broken image
 import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
@@ -42,7 +43,31 @@ await mkdir(join(out, "png"), { recursive: true });
 const browser = await chromium.launch({
   args: ["--font-render-hinting=none", "--disable-font-subpixel-positioning"],
 });
-const page = await browser.newPage({ viewport: { width: 800, height: 480 }, deviceScaleFactor: 1 });
+const context = await browser.newContext({ viewport: { width: 800, height: 480 }, deviceScaleFactor: 1 });
+// The optional base map loads MapLibre from TRMNL's mirror and tiles from
+// maps.trmnl.com. Fetch exactly those through curl (which uses the
+// environment's proxy and CA bundle) and hand them to the page; everything
+// else external is blocked, so renders stay offline and deterministic.
+const PASS = [/^https:\/\/trmnl\.com\/js\/maplibre-gl\//, /^https:\/\/maps\.trmnl\.com\//];
+const fetched = new Map();
+await context.route(/^https?:\/\//, async (route) => {
+  const url = route.request().url();
+  if (url.startsWith(base)) return route.continue();
+  if (!PASS.some((re) => re.test(url))) return route.abort();
+  try {
+    if (!fetched.has(url)) {
+      const body = execFileSync("curl", ["-sS", "-f", "-m", "20", "--compressed", url], { maxBuffer: 64 << 20 });
+      fetched.set(url, body);
+    }
+    const type = url.endsWith(".js") ? "text/javascript" : url.endsWith(".css") ? "text/css"
+      : "application/x-protobuf";
+    return route.fulfill({ status: 200, contentType: type, body: fetched.get(url),
+      headers: { "access-control-allow-origin": "*" } });
+  } catch {
+    return route.fulfill({ status: 204, body: "" });
+  }
+});
+const page = await context.newPage();
 const results = [];
 let failed = 0;
 
@@ -56,6 +81,8 @@ for (const { name } of index) {
   } catch {
     problems.push("framework runtime did not finish");
   }
+  // Maps draw asynchronously: give their canvas time to settle.
+  if (await page.$(".map")) await page.waitForTimeout(4000);
   await page.evaluate(() => document.fonts.ready);
   problems.push(...await page.evaluate(() => {
     const p = [];
@@ -70,6 +97,8 @@ for (const { name } of index) {
         p.push(`${cls}: view overflows (${view.scrollWidth}x${view.scrollHeight} > ${view.clientWidth}x${view.clientHeight})`);
       }
       for (const el of view.querySelectorAll("*")) {
+        // Inside a deliberately clipped box only the box itself must fit.
+        if (el.parentElement && el.parentElement.closest(".gt-clip")) continue;
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
         if (r.left < vr.left - 1 || r.top < vr.top - 1 || r.right > vr.right + 1 || r.bottom > vr.bottom + 1) {
@@ -79,7 +108,10 @@ for (const { name } of index) {
           break;
         }
       }
-      for (const el of view.querySelectorAll(".gt-ellip, .value, .label, .title")) {
+      // .gt-clip marks user text (activity names) that is clipped on purpose
+      // when it is too long even at the smaller size; anything else must fit.
+      for (const el of view.querySelectorAll(".value, .label, .title")) {
+        if (el.closest(".gt-clip")) continue;
         if (el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflow !== "visible") {
           p.push(`${cls}: truncated "${el.textContent.trim().slice(0, 40)}"`);
         }

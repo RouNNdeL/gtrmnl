@@ -1,0 +1,39 @@
+# Private plugin settings, as TRMNL stores them in settings.yml, minus the
+# instance id (keep account identifiers out of this public repository).
+# The custom fields become the plugin's settings form; the markup reads them
+# from trmnl.plugin_settings.custom_fields_values.
+---
+strategy: webhook
+no_screen_padding: 'no'
+dark_mode: 'no'
+framework_version: 3.4.4
+custom_fields:
+- keyname: screen
+  field_type: select
+  name: Screen
+  description: What this plugin shows
+  options:
+  - Latest activity: latest
+  - Splits: splits
+  - Heart rate: heart
+  - Week: week
+  - Recovery: recovery
+  default: latest
+- keyname: map
+  field_type: select
+  name: Route map
+  description: How the latest activity's route is drawn
+  options:
+  - Route line: route
+  - Route on street map: streets
+  - Route on simple map: minimal
+  - 'Off': 'off'
+  default: route
+- keyname: stale_hours
+  field_type: string
+  name: Flag data older than (hours)
+  description: Show a banner when the collector has not pushed for this long
+  default: '4'
+name: Garmin
+description: Garmin Connect (gtrmnl collector)
+refresh_interval: 15

@@ -36,6 +36,7 @@
    59,
    23
   ],
+  "p": "odx}Hoof_CfEoQfE_MzVa_@x[al@t@wCdBaY\\cRgCyq@yAwQ_A}^Dyl@fBaX`Luj@zBgOr@uHcAy@[dB|@fJ}BbLiFrd@GvKaC`NStLoBlKDvKmCxMkJzp@kBlPQtKyGv`@wChJkBhSuJto@",
   "h": "140,174,ACCCGLJWTacchhpruw247_9424wywyssrrrjhhjjeeeghhnjjlruwsyyw0yy54454240202uwrpnnnlhjjghggggehjjnrpsyy00y2592745022ww0sssssl"
  },
  "wk": {
@@ -58,15 +59,28 @@
    60,
    1,
    60
+  ],
+  "hike": [
+   0,
+   0,
+   0
+  ],
+  "lhike": [
+   0,
+   0,
+   0
   ]
  },
  "d7": "0,0,0,0,0,0,0",
+ "d14": ",,,b60,,r9,,,,,,,,",
  "rec": [
   [
    "ride",
    1792652400,
    60000,
-   7229
+   7229,
+   "Saturday ride",
+   643
   ]
  ],
  "w": {
