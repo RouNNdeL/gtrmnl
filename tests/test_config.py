@@ -30,3 +30,29 @@ def test_bad_int(monkeypatch):
     monkeypatch.setenv("INTERVAL_MINUTES", "soon")
     with pytest.raises(ConfigError):
         Config.from_env()
+
+
+def test_garmin_secrets_from_files(monkeypatch, tmp_path):
+    (tmp_path / "pw").write_text("hunter2\n")
+    (tmp_path / "tok").write_text('{"di_token": "x"}\n')
+    monkeypatch.setenv("GARMIN_PASSWORD_FILE", str(tmp_path / "pw"))
+    monkeypatch.setenv("GARMIN_PASSWORD", "ignored")
+    monkeypatch.setenv("GARMIN_TOKENS_FILE", str(tmp_path / "tok"))
+    monkeypatch.setenv("GARMIN_EMAIL", "me@example.com")
+    c = Config.from_env()
+    assert c.garmin_password == "hunter2" and c.garmin_password_source == "GARMIN_PASSWORD_FILE"
+    assert c.garmin_tokens == '{"di_token": "x"}' and c.garmin_email == "me@example.com"
+    assert "hunter2" not in repr(c)
+
+
+def test_garmin_password_plain_env(monkeypatch):
+    monkeypatch.delenv("GARMIN_PASSWORD_FILE", raising=False)
+    monkeypatch.setenv("GARMIN_PASSWORD", "pw")
+    c = Config.from_env()
+    assert c.garmin_password == "pw" and c.garmin_password_source == "GARMIN_PASSWORD"
+
+
+def test_missing_secret_file_is_an_error(monkeypatch, tmp_path):
+    monkeypatch.setenv("GARMIN_TOKENS_FILE", str(tmp_path / "absent"))
+    with pytest.raises(ConfigError):
+        Config.from_env()

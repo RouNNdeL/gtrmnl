@@ -21,6 +21,7 @@ class State:
     auth_flag_pushed: bool = False
     last_error: str | None = None
     last_size: int | None = None
+    seed_hash: str | None = None  # fingerprint of the last GARMIN_TOKENS seeded
 
     @classmethod
     def load(cls, path: Path) -> State:

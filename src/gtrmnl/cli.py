@@ -12,7 +12,7 @@ import sys
 import threading
 from pathlib import Path
 
-from . import garmin, normalize, payload, service
+from . import bootstrap, garmin, normalize, payload, service
 from .config import Config, ConfigError
 from .sanitize import Sanitizer
 from .state import State
@@ -30,7 +30,7 @@ def _setup_logging(level: str) -> None:
 
 
 def cmd_login(cfg: Config, args: argparse.Namespace) -> int:
-    email = args.email or input("Garmin email: ").strip()
+    email = args.email or cfg.garmin_email or input("Garmin email: ").strip()
     password = getpass.getpass("Garmin password (not stored): ")
     try:
         garmin.interactive_login(cfg.token_dir, email, password, lambda: input("MFA code: "))
@@ -53,17 +53,25 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
         signal.signal(sig, lambda *_: stop.set())
     if cfg.webhook_url is None:
         log.warning("TRMNL_WEBHOOK_URL is not set: collecting without pushing")
+    if cfg.garmin_password_source == "GARMIN_PASSWORD":  # noqa: S105 (a variable name)
+        log.warning("GARMIN_PASSWORD is set in the environment; GARMIN_PASSWORD_FILE is safer")
     client = None
-    warned = False
+    memo = bootstrap.Memo()
     while not stop.is_set():
         st = State.load(cfg.state_file)
-        if not cfg.token_file.is_file():
-            if not warned:
-                log.warning("no Garmin tokens: run `gtrmnl login` in this container")
-                warned = True
+        try:
+            how = bootstrap.ensure_tokens(cfg, st, memo)
+        except Exception:
+            log.exception("token bootstrap failed")
+            how = bootstrap.MISSING
+        if how in (bootstrap.SEEDED, bootstrap.PASSWORD):
+            client = None
+            st.save(cfg.state_file)
+        if not cfg.token_file.is_file() or st.auth_failed:
+            # No tokens, or dead ones: wait for `gtrmnl login` or new env
+            # instead of hammering Garmin's SSO.
             stop.wait(60)
             continue
-        warned = False
         try:
             client, out = service.run_once(cfg, st, client)
             log.info("cycle: %s%s", out.reason, f" ({out.size} bytes)" if out.size else "")
@@ -73,19 +81,20 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
             client = None
         st.save(cfg.state_file)
         if st.auth_failed:
-            # Tokens are dead; wait for a new login instead of hammering SSO.
-            mtime = cfg.token_file.stat().st_mtime if cfg.token_file.exists() else 0
-            while not stop.wait(60):
-                if cfg.token_file.exists() and cfg.token_file.stat().st_mtime != mtime:
-                    break
-            continue
+            continue  # the top of the loop waits, retrying env credentials once
         stop.wait(cfg.interval_minutes * 60)
     log.info("stopping")
     return 0
 
 
+def _bootstrap_once(cfg: Config, st: State) -> None:
+    bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
+    st.save(cfg.state_file)
+
+
 def cmd_once(cfg: Config, args: argparse.Namespace) -> int:
     st = State.load(cfg.state_file)
+    _bootstrap_once(cfg, st)
     if args.dry_run:
         client = garmin.connect(cfg.token_dir)
         now = dt.datetime.now(dt.UTC)
@@ -108,6 +117,7 @@ def cmd_fixtures(cfg: Config, args: argparse.Namespace) -> int:
     """Save sanitized raw responses plus the payloads built from them."""
     out = Path(args.out or cfg.data_dir / "fixtures")
     out.mkdir(parents=True, exist_ok=True)
+    _bootstrap_once(cfg, State.load(cfg.state_file))
     client = garmin.connect(cfg.token_dir)
     now = dt.datetime.now(dt.UTC)
     today = now.astimezone(cfg.tz).date()
