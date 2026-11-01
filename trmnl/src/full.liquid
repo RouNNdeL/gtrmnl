@@ -2,7 +2,7 @@
 <div class="gt gt-row">
 
   {%- comment %} Left: the latest activity, then the recent ones. {% endcomment %}
-  <div class="gt-col gt-list" style="width: 248px; flex: none;">
+  <div class="gt-col gt-list" style="width: 260px; flex: none;">
     {%- if has_a %}
       {%- assign el = a.el | default: 0 %}
       {%- assign km = 0 %}{% if a_has_d %}{% assign km = a_km %}{% endif %}
@@ -10,7 +10,9 @@
     {%- endif %}
     {%- for r in rec limit: 5 %}
       {%- assign rkm = r[2] | divided_by: 1000.0 | round: 1 %}
-      {%- assign rname = r[4] | default: r[0] | capitalize %}
+      {%- comment %} Only the fallback (the sport) is capitalized: capitalize would lowercase the rest of a real name. {% endcomment %}
+      {%- assign rsport = r[0] | capitalize %}
+      {%- assign rname = r[4] | default: rsport %}
       {%- assign rel = r[5] | default: 0 %}
       {%- capture rdur %}{% render "gt_dur", s: r[3] %}{% endcapture %}
       {% render "gt_item", c: r[0], name: rname, km: rkm, dur: rdur, el: rel, t: r[1], now: now, off: off, noff: off %}

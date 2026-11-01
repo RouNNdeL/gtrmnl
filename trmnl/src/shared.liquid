@@ -108,8 +108,7 @@ Args: c, name, km, dur, el, t, now, off, noff.
 {% endcomment %}<div class="item item--emphasis-2">
   <div class="meta"></div>
   <div class="content gt-clip">
-    {%- assign name_len = name | size %}
-    <span class="title{% if name_len > 16 %} title--small{% endif %} gt-clip">{% render "gt_sym", n: c, size: "1em" %}<span class="gt-name">{{ name }}</span></span>
+    <span class="title gt-clip">{% render "gt_sym", n: c, size: "1em" %}<span class="gt-name">{{ name }}</span></span>
     <span class="description gt-clip">{% if km > 0 %}{{ km }} km / {% endif %}{{ dur }}{% if el > 0 %} / {{ el }} m{% endif %}</span>
     <div class="flex gap--small"><span class="label label--small label--underline">{% render "gt_when", t: t, now: now, off: off, noff: noff %}</span></div>
   </div>
