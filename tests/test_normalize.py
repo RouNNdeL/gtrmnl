@@ -129,3 +129,46 @@ def test_latest_skips_commutes_when_asked(tmp_path):
     )
     assert m["activity"]["id"] == 11
     assert all(r["id"] != 11 for r in m["recent"])
+
+
+def test_local_offset_from_start_times():
+    # Real shape: a hike in Japan, recorded by an account set to Europe/Warsaw.
+    a = {"startTimeLocal": "2026-10-22 11:10:03", "startTimeGMT": "2026-10-22 02:10:03"}
+    assert normalize.local_offset(a) == 9 * 3600
+    assert normalize.local_offset({"startTimeGMT": "2026-10-22 02:10:03"}) is None
+    assert normalize.local_offset({"startTimeLocal": "x", "startTimeGMT": "y"}) is None
+
+
+def test_offset_reaches_model(tmp_path):
+    raw, series = scenario("ride")
+    raw["activities"][0]["startTimeLocal"] = "2026-11-01 17:00:00"
+    raw["activities"][0]["startTimeGMT"] = "2026-11-01 08:00:00"
+    m = normalize.build_model(raw, series, NOW, TZ, Config(data_dir=tmp_path))
+    assert m["activity"]["offset"] == 9 * 3600
+    raw, series = scenario("run")  # no startTimeLocal: falls back to TZ
+    m = normalize.build_model(raw, series, NOW, TZ, Config(data_dir=tmp_path))
+    assert m["activity"]["offset"] == 3600
+
+
+def test_hikes_use_timer_time():
+    # Real numbers: 2h33 on the timer, Garmin says 50 min moving.
+    a = synth.activity(5, "hiking", at(0), 4817, "Hike", moving_s=9193)
+    a["movingDuration"] = 3003.0
+    assert normalize.summary(a)["moving"] == 9193
+    r = synth.activity(6, "running", at(0), 10000, "Run")
+    r["movingDuration"] = 2900.0
+    assert normalize.summary(r)["moving"] == 2900
+
+
+def test_series_time_base():
+    a = synth.activity(5, "hiking", at(0), 4800, "Hike")
+    d = synth.details(a)
+    keys = [x["key"] for x in d["metricDescriptors"]]
+    rows = d["activityDetailMetrics"]
+    im, it = keys.index("sumMovingDuration"), keys.index("sumDuration")
+    for r in rows:  # make moving time lag the timer, like a real slow hike
+        r["metrics"][im] = r["metrics"][it] * 0.33
+    assert normalize.extract_series(d)["moving_time"]
+    timer = normalize.extract_series(d, moving=False)
+    assert not timer["moving_time"]
+    assert max(timer["t"]) > 2.5 * max(normalize.extract_series(d)["t"])

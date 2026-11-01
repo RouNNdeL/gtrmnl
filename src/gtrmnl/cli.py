@@ -157,7 +157,11 @@ def cmd_fixtures(cfg: Config, args: argparse.Namespace) -> int:
     for aid, parts in per_activity.items():
         fid = san.fake_id(aid)
         details = san.scrub(parts["details"]) if parts["details"] else None
-        series = normalize.extract_series(details) if details else None
+        cat = next(
+            (normalize.summary(a)["cat"] for a in acts if a.get("activityId") == aid), "other"
+        )
+        moving = not normalize.uses_timer(cat)
+        series = normalize.extract_series(details, moving) if details else None
         r = dict(clean)
         r["activities"] = [x for x in clean["activities"] if x.get("activityId") == fid] + [
             x for x in clean["activities"] if x.get("activityId") != fid

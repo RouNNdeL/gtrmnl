@@ -117,10 +117,14 @@ provenance attestation. **After the first push, make the GHCR package public**
 
 ## Status
 
-- Response shapes are mapped from python-garminconnect 0.3.20 and its typed
-  models, and tested against synthetic responses (`gtrmnl/synth.py`). They
-  have not been checked against a real account yet: run `gtrmnl fixtures`
-  and compare.
+- Checked against a real account (2026-11-01, an uploaded hike): password
+  login, token reuse, token seeding, the activity list fields
+  (`hrTimeInZone_*`, `beginTimestamp`, `startTimeLocal`, `movingDuration`),
+  activity detail metric keys, `geoPolylineDTO`, and the HR-zone list.
+- Not yet checked against real data: the wellness endpoints (body battery,
+  sleep, HRV, readiness, training status, VO2 max). The test account has
+  never had a watch, so they all came back empty, which the collector handles.
+  Run `gtrmnl fixtures` on an account with a watch to confirm.
 - Commute detection (`eventType.typeKey == "transportation"`) is unverified.
 - Not implemented (extras from docs/design.md section 5, not chosen yet):
   elevation profile, route thumbnails, 12-week trend, body battery curve,

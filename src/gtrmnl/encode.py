@@ -149,10 +149,12 @@ def resample(t: Sequence[float], v: Sequence[float], n: int) -> list[float] | No
 
 def series_b64(vals: Sequence[float]) -> str:
     """'min,max,' + one base64url char per value, 64 levels between min and max."""
+    # Quantize the rounded values: with round-half-to-even a raw 150.5 rounds
+    # to a max of 150 and would land one level past the alphabet.
     ints = [round(x) for x in vals]
     lo, hi = min(ints), max(ints)
     span = max(hi - lo, 1)
-    chars = "".join(B64[round((x - lo) / span * 63)] for x in vals)
+    chars = "".join(B64[round((x - lo) / span * 63)] for x in ints)
     return f"{lo},{hi},{chars}"
 
 
