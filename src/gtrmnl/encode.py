@@ -149,8 +149,10 @@ def resample(t: Sequence[float], v: Sequence[float], n: int) -> list[float] | No
 
 def series_b64(vals: Sequence[float]) -> str:
     """'min,max,' + one base64url char per value, 64 levels between min and max."""
-    # Quantize the rounded values: with round-half-to-even a raw 150.5 rounds
-    # to a max of 150 and would land one level past the alphabet.
+    # Quantize the rounded values against bounds from those same values, so
+    # every level is 0..63. Mixing rounded bounds with raw values put a raw
+    # max above hi past level 63 (IndexError) and a raw min below lo at
+    # level -1, which Python reads as B64[-1], the top level.
     ints = [round(x) for x in vals]
     lo, hi = min(ints), max(ints)
     span = max(hi - lo, 1)

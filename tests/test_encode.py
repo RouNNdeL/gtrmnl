@@ -1,4 +1,5 @@
 import math
+import random
 import re
 
 from gtrmnl import encode, synth
@@ -93,8 +94,23 @@ def test_compact_number():
     assert encode.compact_number(0.0) == "0"
 
 
-def test_b64_half_values_stay_in_alphabet():
-    # 150.5 rounds to 150 (half to even): the max level must still be 63.
-    s = encode.series_b64([100.0, 120.25, 150.5, 99.5])
-    lo, hi, levels = encode.decode_series_b64(s)
-    assert (lo, hi) == (100, 150) and max(levels) == 63 and min(levels) == 0
+def test_b64_levels_stay_in_range():
+    # Raw extremes that round towards the middle used to overflow (top) or
+    # wrap to B64[-1] (bottom). Cases from the reproduction, then random ones.
+    cases = [
+        [100.0, 150.5],
+        [100.0, 150.4],
+        [101.5, 150.0],
+        [110.2, 125.0, 139.42857142857142],
+    ]
+    rnd = random.Random(1)
+    # Overflow needs span < 63 bpm (0.5 bpm of rounding > half a level), which
+    # is typical for one activity's bins, so draw narrow ranges.
+    for _ in range(500):
+        base, width = rnd.uniform(60, 150), rnd.uniform(3, 60)
+        cases.append([rnd.uniform(base, base + width) for _ in range(120)])
+    for vals in cases:
+        _, _, levels = encode.decode_series_b64(encode.series_b64(vals))
+        assert min(levels) == 0 and max(levels) == 63, vals
+        # the lowest raw bin gets the lowest level, the highest the highest
+        assert levels[vals.index(min(vals))] == 0 and levels[vals.index(max(vals))] == 63
