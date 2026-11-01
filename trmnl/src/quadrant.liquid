@@ -1,0 +1,35 @@
+<div class="layout layout--col layout--top layout--stretch-x">
+<div class="gt gt-col" style="gap: 6px;">
+  {%- if auth_err %}
+  <div class="gt-banner"><span class="label label--small">Garmin login expired</span></div>
+  {%- elsif stale %}
+  <div class="gt-banner"><span class="label label--small">No update since {{ ts_hh }}:{{ ts_mi }}</span></div>
+  {%- endif %}
+  {%- if has_a %}
+  <div class="gt-row">
+    {% render "gt_icon", c: a.c, size: 28 %}
+    <div class="gt-col" style="flex: 1;">
+      <span class="label gt-ellip">{{ a_name }}</span>
+      <span class="label label--small">{% render "gt_when", t: a.st, now: now, off: a_off, noff: off %}</span>
+    </div>
+  </div>
+  <div class="gt-stats">
+    <div class="gt-stat"><span class="value value--xsmall">{{ s1v }}</span><span class="label label--small">{{ s1s }}</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ s2v }}</span><span class="label label--small">{{ s2s }}</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ s3v }}</span><span class="label label--small">{{ s3s }}</span></div>
+  </div>
+  {%- else %}
+  <div class="gt-row"><span class="label">No activities yet</span></div>
+  {%- endif %}
+  <div style="flex: 1;"></div>
+  <div class="gt-tiles" style="grid-template-columns: repeat(4, 1fr); gap: 6px;">
+    <div class="gt-tile" style="padding: 2px 6px;"><span class="value value--xsmall">{{ w.bb | default: "-" }}</span><span class="label label--small">Batt.</span></div>
+    <div class="gt-tile" style="padding: 2px 6px;"><span class="value value--xsmall">{{ w.sl | default: "-" }}</span><span class="label label--small">Sleep</span></div>
+    <div class="gt-tile" style="padding: 2px 6px;"><span class="value value--xsmall">{{ w.tr | default: "-" }}</span><span class="label label--small">Ready</span></div>
+    <div class="gt-tile" style="padding: 2px 6px;"><span class="value value--xsmall">{{ w.rc | default: "-" }}{% if w.rc %}<span class="gt-unit">h</span>{% endif %}</span><span class="label label--small">Rest</span></div>
+  </div>
+</div>
+</div>
+<div class="title_bar">
+  <span class="title">Garmin</span>
+</div>
