@@ -18,6 +18,8 @@ from .sanitize import Sanitizer
 from .state import State
 
 log = logging.getLogger("gtrmnl")
+# Exit status while a login waits for GARMIN_MFA_CODE (EX_TEMPFAIL).
+EXIT_MFA = 75
 
 
 def _setup_logging(level: str) -> None:
@@ -64,15 +66,20 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
         except Exception:
             log.exception("token bootstrap failed")
             how = bootstrap.MISSING
+        if how == bootstrap.MFA_PENDING:
+            # The code Garmin sent comes back through the environment, which
+            # only changes on a new start: exit and let the user restart.
+            st.save(cfg.state_file)
+            log.warning("exiting until GARMIN_MFA_CODE is set")
+            return EXIT_MFA
         if how in (bootstrap.SEEDED, bootstrap.PASSWORD):
             client = None
             st.save(cfg.state_file)
         if not cfg.token_file.is_file() or st.auth_failed:
-            # No tokens, or dead ones: wait for `gtrmnl login`, new env or an
-            # MFA code instead of hammering Garmin's SSO. A pending MFA login
-            # is checked more often so a code is used well before it expires.
+            # No tokens, or dead ones: wait for `gtrmnl login` or new env
+            # instead of hammering Garmin's SSO.
             st.save(cfg.state_file)
-            stop.wait(15 if how == bootstrap.MFA_PENDING else 60)
+            stop.wait(60)
             continue
         try:
             client, out = service.run_once(cfg, st, client)
@@ -92,8 +99,8 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
 def _bootstrap_once(cfg: Config, st: State) -> None:
     how = bootstrap.ensure_tokens(cfg, st, bootstrap.Memo(warned_missing=True))
     st.save(cfg.state_file)
-    if how == bootstrap.MFA_PENDING and not cfg.token_file.is_file():
-        raise garmin.AuthError("waiting for the MFA code Garmin sent (see the log above)")
+    if how == bootstrap.MFA_PENDING:
+        raise garmin.AuthError("waiting for GARMIN_MFA_CODE (see the log above)")
 
 
 def cmd_once(cfg: Config, args: argparse.Namespace) -> int:

@@ -85,26 +85,11 @@ class Config:
     garmin_email: str | None = field(default=None, repr=False)
     garmin_password: str | None = field(default=None, repr=False)
     garmin_password_source: str | None = None
-    # MFA: an authenticator-app secret (fully unattended), or a one-time code
-    # from GARMIN_MFA_CODE (fixed at start) / GARMIN_MFA_CODE_FILE (re-read).
+    # MFA: an authenticator-app secret (fully unattended), or the one-time
+    # code Garmin sent, supplied on the next container start.
     garmin_totp: Totp | None = field(default=None, repr=False)
-    garmin_mfa_code_env: str | None = field(default=None, repr=False)
-    garmin_mfa_code_file: Path | None = None
-    mfa_wait_minutes: int = 15
-
-    def mfa_code(self) -> str | None:
-        """The current one-time MFA code, if one was supplied.
-
-        The file is read on every call, so a code can be dropped in without
-        restarting the container. A missing file just means "no code yet".
-        """
-        if self.garmin_mfa_code_file is not None:
-            try:
-                val = self.garmin_mfa_code_file.read_text(encoding="utf-8").strip()
-            except OSError:
-                val = ""
-            return val.replace(" ", "") or None
-        return self.garmin_mfa_code_env
+    garmin_mfa_code: str | None = field(default=None, repr=False)
+    garmin_mfa_code_source: str | None = None
 
     @property
     def token_dir(self) -> Path:
@@ -130,7 +115,7 @@ class Config:
             totp = Totp.parse(totp_text) if totp_text else None
         except TotpError as e:
             raise ConfigError(f"GARMIN_TOTP_SECRET: {e}") from None
-        code_file = os.environ.get("GARMIN_MFA_CODE_FILE", "").strip()
+        mfa_code, mfa_source = secret("GARMIN_MFA_CODE")
         tz_name = os.environ.get("TZ", "Europe/Warsaw").strip() or "Europe/Warsaw"
         try:
             tz = ZoneInfo(tz_name)
@@ -152,7 +137,6 @@ class Config:
             garmin_password=password,
             garmin_password_source=pw_source,
             garmin_totp=totp,
-            garmin_mfa_code_env=os.environ.get("GARMIN_MFA_CODE", "").replace(" ", "") or None,
-            garmin_mfa_code_file=Path(code_file) if code_file else None,
-            mfa_wait_minutes=_int("GARMIN_MFA_WAIT_MINUTES", 15, minimum=5),
+            garmin_mfa_code=mfa_code.replace(" ", "") if mfa_code else None,
+            garmin_mfa_code_source=mfa_source,
         )
