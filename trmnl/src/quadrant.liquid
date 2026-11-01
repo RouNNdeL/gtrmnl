@@ -102,7 +102,7 @@
     <div class="gt-col" style="flex: 1 1 0; gap: 6px; justify-content: center;">
       {% render "gt_meter", n: "battery", l: "Body battery", v: w.bb, note: "" %}
       {% render "gt_meter", n: "sleep", l: "Sleep", v: w.sl, note: "" %}
-      {%- capture rc_n %}{% if w.rc %}· rest {{ w.rc }} h{% endif %}{% endcapture %}
+      {%- capture rc_n %}{% if w.rc %}rest {{ w.rc }} h{% endif %}{% endcapture %}
       {% render "gt_meter", n: "readiness", l: "Readiness", v: w.tr, note: rc_n %}
     </div>
   {%- endcase %}

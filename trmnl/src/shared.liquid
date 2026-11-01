@@ -159,7 +159,7 @@ Args: c (sport), tw, lw (km), ltd (last week's km by now), h (bar area px).
   <div class="gt-cmp-vals"><span class="label label--small">{{ tw }} km</span><span class="label label--small">{{ lw }} km</span></div>
 </div>{% endtemplate %}
 {% template gt_bar %}{% comment %}
-Title bar: Garmin's logo, the screen name on the right.
+Title bar: Garmin's logo in the middle, the screen name on the right.
 Args: instance.
 {% endcomment %}<div class="title_bar">
   <span class="gt-brand">{% render "gt_logo", h: 18 %}</span>
@@ -542,7 +542,10 @@ getAttribute: no JavaScript string escaping (it may contain backslashes). {% end
   .gt-name-box { flex: 1 1 auto; min-width: 0; height: 1.3em; display: flex; align-items: center; }
   .gt-logo { display: block; fill: currentColor; }
   .gt-meter-val { display: flex; align-items: baseline; gap: 8px; }
-  .gt-brand { display: flex; align-items: center; margin-right: 6px; }
+  /* The logo sits in the middle of the title bar; the screen name stays right. */
+  .title_bar:has(.gt-brand) { position: relative; }
+  .gt-brand { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+              display: flex; align-items: center; }
   .gt-cmp { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 0; }
   .gt-cmp-bars { display: flex; align-items: flex-end; justify-content: center; gap: 6px; }
   .gt-cmp-bar { width: 38%; max-width: 40px; border-radius: 3px 3px 0 0; }
