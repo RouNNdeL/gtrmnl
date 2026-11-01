@@ -128,7 +128,7 @@ are saved.
    (UID 568 by default; check yours with `id apps`).
 2. Write the webhook URL into `webhook_url` in that dataset, mode 0600.
 3. Install via YAML with [compose.example.yaml](compose.example.yaml): image
-   `ghcr.io/rounndel/gtrmnl:<tag>`, read-only root, tmpfs `/tmp`, all
+   `ghcr.io/rounndel/gtrmnl:latest` (or a `sha-<commit>` tag to pin), read-only root, tmpfs `/tmp`, all
    capabilities dropped, `no-new-privileges`, no ports.
 4. Log in: open the container shell and run `gtrmnl login` once, or use one of
    the environment options above.
@@ -153,7 +153,8 @@ Actions current.
 CI (`.github/workflows/ci.yml`) runs ruff, pytest and a check that
 `trmnl/fixtures` match the generator. `image.yml` builds amd64 + arm64 on every
 PR without pushing, and on `master` and `v*` tags pushes to
-`ghcr.io/rounndel/gtrmnl` (`latest`, semver, `sha-<commit>`) with an SBOM and
+`ghcr.io/rounndel/gtrmnl` (`latest` and `sha-<commit>`; a `v1.2.3` tag adds `1.2.3`
+and `1.2`) with an SBOM and
 provenance attestation. **After the first push, make the GHCR package public**
 (package settings), or TrueNAS cannot pull it anonymously.
 

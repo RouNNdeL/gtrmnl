@@ -1,7 +1,9 @@
 # Example for `docker compose` or a TrueNAS "Install via YAML" custom app.
 services:
   gtrmnl:
-    image: ghcr.io/rounndel/gtrmnl:0.1.0   # pin a release tag
+    # `latest` follows master. To pin, use a published sha-<commit> tag
+    # (see the package's page on GitHub); version tags appear once v* is tagged.
+    image: ghcr.io/rounndel/gtrmnl:latest
     restart: unless-stopped
     user: "568:568"                         # owner of the /data dataset
     environment:
