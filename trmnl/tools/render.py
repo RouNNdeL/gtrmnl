@@ -27,6 +27,7 @@ SRC = HERE.parent / "src"
 FIXTURES = HERE.parent / "fixtures"
 TL_RENDER = HERE / "tl_render.rb"
 LAYOUTS = ("full", "half_vertical", "half_horizontal", "quadrant")
+SCREENS = ("latest", "splits", "heart", "week", "recovery")  # trmnl/settings.yml
 DEFAULT_VERSION = "3.4.4"
 OFFSET = 3600  # Europe/Warsaw in winter; matches trmnl.user.utc_offset
 
@@ -104,6 +105,8 @@ def main() -> None:
     ap.add_argument("--extra", type=Path, help="extra fixture directory (e.g. private data)")
     ap.add_argument("--layouts", nargs="*", default=list(LAYOUTS))
     ap.add_argument("--no-mashups", action="store_true")
+    ap.add_argument("--screens", nargs="*", default=list(SCREENS), help="settings: screen")
+    ap.add_argument("--map", default="route", help="settings: map (route|streets|minimal|off)")
     args = ap.parse_args()
     if not args.trmnl_liquid or not (Path(args.trmnl_liquid) / "trmnl" / "liquid.rb").is_file():
         ap.error("--trmnl-liquid must point at the trmnl-liquid gem's lib/ directory")
@@ -122,30 +125,31 @@ def main() -> None:
     names = args.fixtures or sorted(files)
     fixtures = {n: json.loads(files[n].read_text()) for n in names}
 
-    # Every page as (name, set, mashup, [(layout, fixture or None for an empty slot)]).
+    # Every page as (name, set, mashup, [(layout, screen, fixture or None for an empty slot)]).
     plan = []
-    for layout in args.layouts:
-        solo = SOLO.get(layout)
-        for n in fixtures:
-            slots = [(layout, n)] + [(layout, None)] * ((SLOTS[solo] - 1) if solo else 0)
-            plan.append((f"{layout}@{n}", layout, solo, slots))
-    # Mashups: this plugin in every slot of a layout (worst case for density).
-    for mashup, layouts in ({} if args.no_mashups else MASHUPS).items():
-        for n in ("ride", "run", "indoor", "auth_error"):
-            if n in fixtures:
-                plan.append((f"{mashup}@{n}", mashup, mashup, [(s, n) for s in layouts]))
+    for screen in args.screens:
+        for layout in args.layouts:
+            solo = SOLO.get(layout)
+            for n in fixtures:
+                slots = [(layout, screen, n)]
+                slots += [(layout, screen, None)] * ((SLOTS[solo] - 1) if solo else 0)
+                plan.append((f"{layout}-{screen}@{n}", f"{layout}-{screen}", solo, slots))
+        # Mashups: this plugin in every slot of a layout (worst case for density).
+        for mashup, layouts in ({} if args.no_mashups else MASHUPS).items():
+            for n in ("ride", "run", "indoor", "auth_error"):
+                if n in fixtures:
+                    slots = [(s, screen, n) for s in layouts]
+                    plan.append((f"{mashup}-{screen}@{n}", f"{mashup}-{screen}", mashup, slots))
 
-    keys = sorted({(lay, n) for *_, slots in plan for lay, n in slots if n is not None})
-    html = dict(
-        zip(
-            keys,
-            render_all([job(lay, fixtures[n]) for lay, n in keys], Path(args.trmnl_liquid)),
-            strict=True,
-        )
-    )
+    keys = sorted({k for *_, slots in plan for k in slots if k[2] is not None})
+    jobs = [
+        job(lay, fixtures[n], {"screen": scr, "map": args.map, "stale_hours": "4"})
+        for lay, scr, n in keys
+    ]
+    html = dict(zip(keys, render_all(jobs, Path(args.trmnl_liquid)), strict=True))
     index = []
     for name, set_name, mashup, slots in plan:
-        views = [(lay, html[(lay, n)] if n is not None else "") for lay, n in slots]
+        views = [(k[0], html[k] if k[2] is not None else "") for k in slots]
         (pages / f"{name}.html").write_text(page(views, mashup, args.version), encoding="utf-8")
         index.append({"name": name, "set": set_name})
     (out / "index.json").write_text(json.dumps(index, indent=1))

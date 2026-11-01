@@ -5,20 +5,52 @@ merge variables (docs/payload.md); this markup draws them on a TRMNL OG
 (og_plus, 800x480, 4 greys).
 
 ```
-src/shared.liquid           templates, computed values, styles (prepended to every layout)
-src/full.liquid             route | name, 6 stats, HR chart, splits | 7 tiles (week + wellness)
-src/half_vertical.liquid    route, name, 6 stats, HR chart, 4 tiles
-src/half_horizontal.liquid  route | name, 3 stats, HR strip | week totals + 3 tiles
-src/quadrant.liquid         name, 3 stats, 4 readiness tiles
+settings.yml                the settings form (Screen, Route map, stale_hours)
+src/shared.liquid           templates, icons, computed values, styles (prepended to every layout)
+src/full.liquid             activity list | the chosen screen's panel
+src/half_vertical.liquid    compact panel, one column
+src/half_horizontal.liquid  compact panel, one row
+src/quadrant.liquid         the panel's essentials
 fixtures/*.json             merge variables per state, plus "__now" to pin the clock
-tools/                      fixture generator, local renderer, screenshot gate, contact sheets
+tools/                      fixtures, renderer, screenshot gate, contact sheets, icon generator
 ```
 
-Custom field read by the markup: `stale_hours` (default 4). Add it to the
-plugin's form if you want to change it.
+### Settings
 
-The route is drawn from pre-projected SVG path data (option (a) in
-docs/design.md section 8): no JavaScript, no base map, identical everywhere.
+`settings.yml` holds the plugin's settings form (TRMNL's `custom_fields`),
+the same as the private plugin's `settings.yml` minus its instance id:
+
+| Field | Values | |
+|---|---|---|
+| Screen (`screen`) | Latest activity, Splits, Heart rate, Week, Recovery | What the plugin shows |
+| Route map (`map`) | Route line, Route on street map, Route on simple map, Off | How the latest activity's route is drawn |
+| `stale_hours` | number, default 4 | Banner when the collector has not pushed for this long |
+
+The route line is pre-projected SVG path data: no JavaScript, identical
+everywhere. The two map options draw the route over OpenStreetMap tiles with
+the framework's map engine (`TRMNLMaps`, MapLibre from TRMNL's mirror, tiles
+from maps.trmnl.com, no key), from the encoded polyline `a.p`. If a payload
+had to drop `a.p` to fit the size limit, the markup falls back to the line.
+
+### Screens
+
+Every full-size screen keeps the activity list on the left (framework
+`item`s with sport icons) and puts the chosen panel on the right:
+
+- **Latest activity:** route plus 6 stat tiles (8 without a route), chosen per
+  sport (pace for runs, speed for rides, ascent for hikes, calories and heart
+  rate for indoor sessions).
+- **Splits:** bar chart (fastest in black) and a table with the fastest and
+  slowest split marked, or a summary for long activities.
+- **Heart rate:** HR over moving time (timer time for hikes) and time in zones.
+- **Week:** a Monday-to-Sunday calendar of last week and this week with the
+  day's sport icon and km, and run/ride/hike km this week vs last week.
+- **Recovery:** body battery, sleep, HRV, training readiness, recovery time,
+  training status with VO2 max and load.
+
+The half and quadrant layouts show a compact version of the same panel.
+Icons are Material Design Icons, generated into `shared.liquid` by
+`tools/icons.py`; do not edit that block by hand.
 
 ## Render locally
 
@@ -63,8 +95,13 @@ or an icon has no path data.
 
 1. Create a private plugin, strategy **Webhook** (TRMNL web UI, or the TRMNL
    connector: `createPluginSetting`, then `updatePluginSettingFields`).
-2. Paste `shared.liquid` into the shared markup and each layout into its tab.
-3. Put the plugin's webhook URL into the collector's `TRMNL_WEBHOOK_URL_FILE`.
-4. Preview on og_plus, then choose where it goes in the playlist.
+2. Add the `custom_fields` from `settings.yml` to the plugin's settings form
+   (or replace its files with the connector's `importPluginSettingFiles`,
+   keeping the plugin's own `id` line), then pick a Screen and Route map.
+3. Paste `shared.liquid` into the shared markup and each layout into its tab.
+4. Put the plugin's webhook URL into the collector's `TRMNL_WEBHOOK_URL_FILE`.
+5. Preview on og_plus, then choose where it goes in the playlist. The plugin
+   shows one screen at a time; change the Screen setting to switch. (The
+   collector pushes to a single webhook, so plugin copies would not get data.)
 
 Icons are from Material Design Icons (Apache 2.0).

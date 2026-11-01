@@ -15,7 +15,8 @@ sees blank. Example states: `trmnl/fixtures/*.json`.
 | `a` | object | Latest activity (absent when there is none) |
 | `wk` | object | Week totals |
 | `d7` | string | km per day for the last 7 days, oldest first, all sports: `"0,12.4,45.2,0,8.1,21,81.2"` |
-| `rec` | array | Recent activities after the latest: `[category, start epoch, metres, moving s]` |
+| `d14` | string | Calendar from last week's Monday to this week's Sunday, 14 entries: the day's main sport as one letter (`r` run, `b` ride, `h` hike, `w` walk, `s` swim, `g` gym, `k` ski, `o` other) plus km that day (`"r8.2"`; no km for e.g. gym), `""` for a rest day, `"."` for days still to come. Trailing rest days may be missing (Liquid's `split` drops trailing empty strings). |
+| `rec` | array | Recent activities after the latest: `[category, start epoch, metres, moving s, name, ascent m]` |
 | `w` | object | Wellness |
 
 ## `a`: latest activity
@@ -39,13 +40,14 @@ sees blank. Example states: `trmnl/fixtures/*.json`.
 | `spl` | Splits, comma separated: seconds per `su` km (run, hike, walk) or km/h x10 (ride) |
 | `su` | Split length, km: 1 or 5 on foot; 5, 10 or 25 on a bike, by distance |
 | `r` | Route as relative SVG path data, pre-projected: the longer side is 380 units (1 unit = 1 px of the largest map box), y down |
+| `p` | The same route as a Google encoded polyline (simplified at 1 px or coarser), for the optional base map (`map` setting); the first thing dropped when space is short |
 | `rb` | `[width, height, end_x, end_y]` of the route box |
 | `h` | HR chart: `"min,max,"` + one base64url char per bin (64 levels between min and max), binned over moving time (timer time for hikes and walks) |
 
 ## `wk`
 
-`run`, `ride`: this week (Monday start, `TZ`) `[km, count, moving s]`.
-`lrun`, `lride`: last week `[km, count, km to the same weekday and time]`.
+`run`, `ride`, `hike`: this week (Monday start, `TZ`) `[km, count, moving s]`.
+`lrun`, `lride`, `lhike`: last week `[km, count, km to the same weekday and time]`.
 Commutes count unless `TOTALS_INCLUDE_COMMUTES=false`.
 
 ## `w`
@@ -66,7 +68,7 @@ Commutes count unless `TOTALS_INCLUDE_COMMUTES=false`.
 ## Fitting to the limit
 
 `payload.fit()` walks a ladder and keeps the first option that fits:
-route tolerance 0.5 → 0.75 → 1 → 1.5 → 2 px, at most 12 then 8 splits, HR
+everything; without the base-map polyline `p`; route tolerance 0.5 → 0.75 → 1 → 1.5 → 2 px, at most 12 then 8 splits, HR
 chart 120 → 60 bins, recent activities 5 → 0, then emergency steps (route
 3-6 px, no splits, 30-bin then no HR chart, no `d7`, no route). On a 422 the
 collector parses the limit from TRMNL's message ("should be less than 2kb"
