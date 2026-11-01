@@ -21,8 +21,11 @@ Icons: Material Design Icons (Apache 2.0).
   echo mi | append: ":" | append: se
 %}{% endtemplate %}
 {% template gt_when %}{% liquid
+  # t, off: start and UTC offset where the activity happened (clock time).
+  # now, noff: render time and the viewer's offset (which day is "today").
   assign lt = t | plus: off
-  assign ln = now | plus: off
+  assign noff = noff | default: off
+  assign ln = now | plus: noff
   assign dt = lt | divided_by: 86400
   assign dn = ln | divided_by: 86400
   assign diff = dn | minus: dt
@@ -131,7 +134,14 @@ Icons: Material Design Icons (Apache 2.0).
     render "gt_dur", s: a_mt
   endcapture
   assign s2l = "Moving time"
+  assign s2m = "Moving"
   assign s2s = "moving"
+  if a_climb
+    # Hikes and walks carry timer time in a.mt (see normalize.TIMER_SPORTS).
+    assign s2l = "Time"
+    assign s2m = "Time"
+    assign s2s = "time"
+  endif
   assign s3u = ""
   if a_climb
     assign s3v = a.el | default: "-"

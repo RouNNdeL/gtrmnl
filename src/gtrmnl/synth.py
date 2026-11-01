@@ -65,6 +65,7 @@ def activity(
     commute: bool = False,
     moving_s: float | None = None,
     seed: int | None = None,
+    utc_offset_h: float | None = None,
 ) -> dict[str, Any]:
     speed, hr0, span = SPORTS.get(type_key, (2.0, 120, 20))
     rnd = random.Random(seed if seed is not None else aid)
@@ -79,6 +80,15 @@ def activity(
         "activityName": name,
         "startTimeGMT": start.astimezone(dt.UTC).strftime("%Y-%m-%d %H:%M:%S"),
         "beginTimestamp": begin,
+        **(
+            {
+                "startTimeLocal": (
+                    start.astimezone(dt.UTC) + dt.timedelta(hours=utc_offset_h)
+                ).strftime("%Y-%m-%d %H:%M:%S")
+            }
+            if utc_offset_h is not None
+            else {}
+        ),
         "activityType": {"typeKey": type_key, "typeId": 1, "parentTypeId": 17},
         "eventType": {"typeKey": "transportation" if commute else "uncategorized"},
         "distance": dist_m,
@@ -259,6 +269,7 @@ SCENARIOS = (
     "stale",
     "auth_error",
     "no_activity",
+    "abroad",
 )
 
 
@@ -277,6 +288,8 @@ def scenario(kind: str, now: dt.datetime) -> tuple[dict, dict | None]:
         "indoor": [activity(14, "indoor_cycling", at(0, 7), 0, "Zwift", moving_s=3600)],
         "long": [activity(13, "gravel_cycling", at(0, 6), 214000, "Bikepacking day 2")],
         "commute": [activity(16, "cycling", at(0, 17), 7400, "Commute home", commute=True)],
+        # 03:00 in Warsaw is 11:00 in Japan: shown as "Today 11:00".
+        "abroad": [activity(17, "hiking", at(0, 3), 4800, "Ridge hike", utc_offset_h=9)],
     }.get(kind, [])
     history = [
         activity(21, "cycling", at(1, 8), 7400, "Commute", commute=True),
@@ -295,7 +308,8 @@ def scenario(kind: str, now: dt.datetime) -> tuple[dict, dict | None]:
     series = None
     if acts:
         newest = max(acts, key=lambda a: a["beginTimestamp"])
-        from .normalize import extract_series
+        from .normalize import category, extract_series, uses_timer
 
-        series = extract_series(details(newest))
+        moving = not uses_timer(category(newest["activityType"]["typeKey"]))
+        series = extract_series(details(newest), moving)
     return raw, series

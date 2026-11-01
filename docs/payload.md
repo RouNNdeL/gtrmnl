@@ -27,9 +27,9 @@ sees blank. Example states: `trmnl/fixtures/*.json`.
 | `c` | Category: `run`, `ride`, `hike`, `walk`, `swim`, `strength`, `ski`, `other` |
 | `cm` | `1` when Garmin marks it as a commute (event type `transportation`; unverified) |
 | `st` | Start, epoch s |
-| `o` | UTC offset at the start, seconds (so DST is right for older activities) |
+| `o` | UTC offset where the activity happened, seconds: `startTimeLocal - startTimeGMT` (falls back to `TZ`). The start clock time is shown in this zone; "today" / "N days ago" use the viewer's zone. |
 | `d` | Distance, m |
-| `t`, `mt` | Elapsed and moving time, s |
+| `t`, `mt` | Elapsed and moving time, s. For hikes and walks `mt` is timer time: Garmin's moving threshold counts slow climbing as stopped (a real 2 h 33 min hike reported 50 min moving). |
 | `hr`, `mx` | Average and max HR |
 | `el` | Elevation gain, m |
 | `kc` | kcal |
@@ -40,7 +40,7 @@ sees blank. Example states: `trmnl/fixtures/*.json`.
 | `su` | Split length, km: 1 or 5 on foot; 5, 10 or 25 on a bike, by distance |
 | `r` | Route as relative SVG path data, pre-projected: the longer side is 380 units (1 unit = 1 px of the largest map box), y down |
 | `rb` | `[width, height, end_x, end_y]` of the route box |
-| `h` | HR chart: `"min,max,"` + one base64url char per bin (64 levels between min and max), binned over moving time |
+| `h` | HR chart: `"min,max,"` + one base64url char per bin (64 levels between min and max), binned over moving time (timer time for hikes and walks) |
 
 ## `wk`
 

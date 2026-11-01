@@ -2,8 +2,9 @@
 
 Fixtures may end up in a public repository, so this removes account and
 device identifiers and moves every coordinate so the start of each track
-lands on a fixed point (shapes are kept; home location is not). Review the
-output before committing anyway: activity names are kept as they are.
+lands on a fixed point (shapes are kept; home location is not). Activity
+names are replaced by the sport, because Garmin names activities after the
+place ("Nakatsugawa City Hiking"). Review the output before committing anyway.
 """
 
 from __future__ import annotations
@@ -43,8 +44,36 @@ DROP_KEYS = {
     "deviceIdList",
     "connectIQAppIds",
 }
-LAT_KEYS = {"lat", "latitude", "startLatitude", "endLatitude", "minLatitude", "maxLatitude"}
-LON_KEYS = {"lon", "longitude", "startLongitude", "endLongitude", "minLongitude", "maxLongitude"}
+# Any key ending in lat/latitude or lon/lng/longitude (any case) is a
+# coordinate: lat, startLatitude, minLat, maxLon, ...
+_LAT_RE = re.compile(r"(?i)(lat|latitude)$")
+_LON_RE = re.compile(r"(?i)(lon|lng|longitude)$")
+
+
+def _is_lat(k: str) -> bool:
+    return bool(_LAT_RE.search(k))
+
+
+def _is_lon(k: str) -> bool:
+    return bool(_LON_RE.search(k))
+
+
+def _partner(lat_key: str) -> list[str]:
+    """Candidate longitude keys for a latitude key."""
+    out = []
+    for a, b in (
+        ("Latitude", "Longitude"),
+        ("latitude", "longitude"),
+        ("Lat", "Lon"),
+        ("lat", "lon"),
+        ("Lat", "Lng"),
+        ("lat", "lng"),
+    ):
+        if lat_key.endswith(a):
+            out.append(lat_key[: -len(a)] + b)
+    return out
+
+
 ORIGIN = (52.0, 21.0)  # where every sanitized track starts
 _NUMERIC_KEY = re.compile(r"^\d{4,}$")
 
@@ -75,8 +104,6 @@ class Sanitizer:
             return obj
         if "metricDescriptors" in obj and "activityDetailMetrics" in obj:
             obj = self._scrub_metrics(obj)
-        lat = next((k for k in obj if k in LAT_KEYS), None)
-        lon = next((k for k in obj if k in LON_KEYS), None)
         out: dict[str, Any] = {}
         for k, v in obj.items():
             if k in DROP_KEYS:
@@ -84,23 +111,23 @@ class Sanitizer:
             key = f"device{self.fake_id(k)}" if _NUMERIC_KEY.match(str(k)) else k
             if k == "activityId" and v is not None:
                 out[key] = self.fake_id(v)
-            elif k in LAT_KEYS or k in LON_KEYS:
-                continue  # handled below as a pair
+            elif k == "activityName" and isinstance(v, str):
+                tk = (obj.get("activityType") or {}).get("typeKey") or "activity"
+                out[key] = tk.replace("_", " ").capitalize()
+            elif isinstance(k, str) and (_is_lat(k) or _is_lon(k)):
+                if not isinstance(v, (int, float)) or isinstance(v, bool):
+                    out[key] = self.scrub(v, False)  # e.g. a nested {lat, lon} object
+                # numbers are handled below as pairs
             else:
                 out[key] = self.scrub(v, False)
-        # Pair-wise shift; a lone coordinate is dropped.
-        pairs = [
-            ("lat", "lon"),
-            ("latitude", "longitude"),
-            ("startLatitude", "startLongitude"),
-            ("endLatitude", "endLongitude"),
-            ("minLatitude", "minLongitude"),
-            ("maxLatitude", "maxLongitude"),
-        ]
-        if lat or lon:
-            for a, o in pairs:
-                if isinstance(obj.get(a), (int, float)) and isinstance(obj.get(o), (int, float)):
-                    out[a], out[o] = self._shift(obj[a], obj[o])
+        # Pair-wise shift. A coordinate without a partner is dropped, never kept.
+        for k, v in obj.items():
+            if not (isinstance(k, str) and _is_lat(k)) or not isinstance(v, (int, float)):
+                continue
+            for o in _partner(k):
+                if isinstance(obj.get(o), (int, float)):
+                    out[k], out[o] = self._shift(v, obj[o])
+                    break
         return out
 
     def _scrub_metrics(self, details: dict) -> dict:
@@ -117,5 +144,10 @@ class Sanitizer:
                 and isinstance(m[io], (int, float))
             ):
                 m[ia], m[io] = self._shift(m[ia], m[io])
+            else:
+                # Never keep half a coordinate unshifted.
+                for i in (ia, io):
+                    if i < len(m):
+                        m[i] = None
             rows.append({**s, "metrics": m})
         return {**details, "activityDetailMetrics": rows}

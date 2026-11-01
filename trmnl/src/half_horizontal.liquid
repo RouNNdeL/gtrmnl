@@ -27,12 +27,12 @@
       {% render "gt_icon", c: a.c, size: 28 %}
       <div class="gt-col" style="flex: 1;">
         <span class="title title--small gt-ellip">{{ a_name }}</span>
-        <span class="label label--small">{% render "gt_when", t: a.st, now: now, off: a_off %}</span>
+        <span class="label label--small">{% render "gt_when", t: a.st, now: now, off: a_off, noff: off %}</span>
       </div>
     </div>
     <div class="gt-stats" style="row-gap: 2px;">
       <div class="gt-stat"><span class="value value--xsmall">{{ s1v }}<span class="gt-unit">{{ s1u }}</span></span><span class="label label--small">{{ s1l }}</span></div>
-      <div class="gt-stat"><span class="value value--xsmall">{{ s2v }}</span><span class="label label--small">Moving</span></div>
+      <div class="gt-stat"><span class="value value--xsmall">{{ s2v }}</span><span class="label label--small">{{ s2m }}</span></div>
       <div class="gt-stat"><span class="value value--xsmall">{{ s3v }}<span class="gt-unit">{{ s3u }}</span></span><span class="label label--small">{{ s3l }}</span></div>
     </div>
     {%- endif %}

@@ -91,3 +91,10 @@ def test_compact_number():
     assert encode.compact_number(12.0) == "12"
     assert encode.compact_number(12.34) == "12.3"
     assert encode.compact_number(0.0) == "0"
+
+
+def test_b64_half_values_stay_in_alphabet():
+    # 150.5 rounds to 150 (half to even): the max level must still be 63.
+    s = encode.series_b64([100.0, 120.25, 150.5, 99.5])
+    lo, hi, levels = encode.decode_series_b64(s)
+    assert (lo, hi) == (100, 150) and max(levels) == 63 and min(levels) == 0

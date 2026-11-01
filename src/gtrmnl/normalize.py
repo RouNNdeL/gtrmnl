@@ -95,20 +95,57 @@ def start_epoch(act: dict) -> int | None:
     return None
 
 
+def _parse_ts(v: Any) -> dt.datetime | None:
+    if not isinstance(v, str):
+        return None
+    try:
+        return dt.datetime.strptime(v[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def local_offset(act: dict) -> int | None:
+    """UTC offset where the activity happened: startTimeLocal - startTimeGMT.
+
+    Rounded to 15 minutes; None when either time is missing or the result is
+    not a real offset.
+    """
+    loc, gmt = _parse_ts(act.get("startTimeLocal")), _parse_ts(act.get("startTimeGMT"))
+    if loc is None or gmt is None:
+        return None
+    off = round((loc - gmt).total_seconds() / 900) * 900
+    return off if abs(off) <= 14 * 3600 else None
+
+
+# Garmin's moving-time threshold counts slow climbing as stopped (a 2.5 h hike
+# reports 50 min moving), so on foot off-road the timer time is used instead.
+TIMER_SPORTS = ("hike", "walk")
+
+
+def uses_timer(cat: str) -> bool:
+    return cat in TIMER_SPORTS
+
+
 def summary(act: dict) -> dict:
     """Fields of one activity list entry that the payload needs."""
     tk = g(act, "activityType", "typeKey") or "other"
+    cat = category(tk)
+    timer = num(act.get("duration"))
+    moving = num(act.get("movingDuration"))
+    if uses_timer(cat):
+        moving = timer or moving
     zones = [num(act.get(f"hrTimeInZone_{i}")) for i in range(1, 6)]
     return {
         "id": act.get("activityId"),
         "name": (act.get("activityName") or "").strip(),
         "type": tk,
-        "cat": category(tk),
+        "cat": cat,
         "commute": is_commute(act),
         "start": start_epoch(act),
+        "offset": local_offset(act),
         "dist": num(act.get("distance")) or 0.0,
         "elapsed": num(act.get("elapsedDuration")) or num(act.get("duration")) or 0.0,
-        "moving": num(act.get("movingDuration")) or num(act.get("duration")) or 0.0,
+        "moving": moving or timer or 0.0,
         "avg_hr": num(act.get("averageHR")),
         "max_hr": num(act.get("maxHR")),
         "elev": num(act.get("elevationGain")),
@@ -158,11 +195,12 @@ def _valid_ll(lat: Any, lon: Any) -> bool:
     return -90 <= a <= 90 and -180 <= o <= 180 and (a, o) != (0, 0)
 
 
-def extract_series(details: dict) -> dict:
+def extract_series(details: dict, moving: bool = True) -> dict:
     """Track and time series from get_activity_details.
 
     Time is moving time when the device reports it, so pauses do not draw a
-    straight line across the HR chart.
+    straight line across the HR chart. With moving=False (hikes, walks) it is
+    timer time, because Garmin counts slow climbing as stopped.
     """
     samples = detail_samples(details)
     lat: list[float] = []
@@ -179,7 +217,10 @@ def extract_series(details: dict) -> dict:
                 lon.append(float(s["directLongitude"]))
 
     time_key = None
-    for k in ("sumMovingDuration", "sumDuration", "sumElapsedDuration"):
+    order = ("sumMovingDuration", "sumDuration", "sumElapsedDuration")
+    if not moving:
+        order = ("sumDuration", "sumElapsedDuration", "sumMovingDuration")
+    for k in order:
         if any(num(s.get(k)) is not None for s in samples):
             time_key = k
             break
@@ -404,7 +445,7 @@ def build_model(raw: dict, series: dict | None, now: dt.datetime, tz: ZoneInfo, 
         if latest["zones"] is None:
             latest["zones"] = zones_from_timezones(raw.get("hr_zones"))
         latest["series"] = series
-        if latest["start"] is not None:
+        if latest.get("offset") is None and latest["start"] is not None:
             local = dt.datetime.fromtimestamp(latest["start"], tz)
             latest["offset"] = int(local.utcoffset().total_seconds())
     recent = [a for a in acts if latest is None or a["id"] != latest["id"]]

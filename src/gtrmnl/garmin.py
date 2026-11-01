@@ -168,6 +168,10 @@ def fetch_hr_zones(client: Any, activity_id: Any) -> Any:
     return _call(client.get_activity_hr_in_timezones, str(activity_id))
 
 
+# Bump when the cached series format or its time base changes.
+CACHE_VERSION = 2
+
+
 class SeriesCache:
     """Extracted track/series per activity id, so details are fetched once."""
 
@@ -209,9 +213,13 @@ def latest_series(client: Any, raw: dict, cache: SeriesCache, skip_commutes: boo
     if latest is None or latest["id"] is None:
         return None
     hit = cache.get(latest["id"])
-    if hit is None:
+    if hit is None or hit.get("v") != CACHE_VERSION:
         details = fetch_details(client, latest["id"])
-        hit = {"series": normalize.extract_series(details) if details else None}
+        moving = not normalize.uses_timer(latest["cat"])
+        hit = {
+            "v": CACHE_VERSION,
+            "series": normalize.extract_series(details, moving) if details else None,
+        }
         if latest["zones"] is None:
             hit["hr_zones"] = fetch_hr_zones(client, latest["id"])
         if details is not None:
