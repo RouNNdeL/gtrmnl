@@ -10,6 +10,7 @@ import logging
 import signal
 import sys
 import threading
+import time
 from pathlib import Path
 
 from . import bootstrap, garmin, normalize, payload, service
@@ -61,6 +62,7 @@ def cmd_run(cfg: Config, args: argparse.Namespace) -> int:
     memo = bootstrap.Memo()
     while not stop.is_set():
         st = State.load(cfg.state_file)
+        st.last_loop = time.time()  # heartbeat for `gtrmnl health`
         try:
             how = bootstrap.ensure_tokens(cfg, st, memo)
         except Exception:

@@ -22,7 +22,7 @@ Garmin Connect ──(python-garminconnect)──> gtrmnl collector ──(HTTPS
 | `gtrmnl run` | Service loop. Without tokens it tries the environment (below), otherwise logs "run `gtrmnl login`" and waits. After an auth failure it waits for a new login or new credentials. Exits with status 75 when Garmin sent an MFA code that must be added as `GARMIN_MFA_CODE`. |
 | `gtrmnl once [--dry-run] [--force]` | One cycle. `--dry-run` prints the payload and its size and pushes nothing. |
 | `gtrmnl fixtures [--out DIR]` | Saves sanitized raw responses and payloads (ids removed, tracks moved to a fixed origin). Review before committing. |
-| `gtrmnl health` | Docker healthcheck: fails after an auth failure or when the last success is older than 2 intervals + 5 min. |
+| `gtrmnl health` | Docker healthcheck. Fails only when a restart could help: the collector loop has not run for 2 intervals + 5 min. Missing or expired Garmin tokens and Garmin/TRMNL outages are reported in its output but stay healthy, so the app shell (needed for `gtrmnl login`) stays available; the screen shows a login banner instead. |
 
 Each cycle makes about 7 Garmin calls, fetching an activity's details only once
 per new activity (cached in `/data/cache`). It pushes when the content changes,
