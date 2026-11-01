@@ -107,6 +107,68 @@ def route_svg(
     return "".join(out), [max(1, round(w_m * scale)), max(1, round(h_px)), ex, ey]
 
 
+def _enc_signed(v: int) -> str:
+    v = ~(v << 1) if v < 0 else (v << 1)
+    out = []
+    while v >= 0x20:
+        out.append(chr((0x20 | (v & 0x1F)) + 63))
+        v >>= 5
+    out.append(chr(v + 63))
+    return "".join(out)
+
+
+def polyline(lat: Sequence[float], lon: Sequence[float], precision: int = 5) -> str:
+    """Google encoded polyline, the format TRMNLMaps.decodePolyline() reads."""
+    f = 10**precision
+    out, pa, po = [], 0, 0
+    for a, o in zip(lat, lon, strict=True):
+        ia, io = round(a * f), round(o * f)
+        out.append(_enc_signed(ia - pa) + _enc_signed(io - po))
+        pa, po = ia, io
+    return "".join(out)
+
+
+def decode_polyline(s: str, precision: int = 5) -> list[tuple[float, float]]:
+    """Inverse of polyline() as (lat, lon) pairs (used by tests and tools)."""
+    coords, i, lat, lon = [], 0, 0, 0
+    while i < len(s):
+        vals = []
+        for _ in range(2):
+            shift = result = 0
+            while True:
+                b = ord(s[i]) - 63
+                i += 1
+                result |= (b & 0x1F) << shift
+                shift += 5
+                if b < 0x20:
+                    break
+            vals.append(~(result >> 1) if result & 1 else result >> 1)
+        lat += vals[0]
+        lon += vals[1]
+        coords.append((lat / 10**precision, lon / 10**precision))
+    return coords
+
+
+def route_polyline(
+    lat: Sequence[float], lon: Sequence[float], tol_px: float, map_px: int = MAP_PX
+) -> str | None:
+    """The track simplified exactly like route_svg(), as an encoded polyline.
+
+    For the optional base map: the framework's map engine draws it over
+    OpenStreetMap tiles, so it needs real coordinates, not projected ones.
+    """
+    if len(lat) < 2:
+        return None
+    pts = project(lat, lon)
+    span = max(max(p[0] for p in pts), max(p[1] for p in pts))
+    if span < 1:
+        return None
+    keep = rdp(pts, tol_px * span / map_px)
+    if len(keep) < 2:
+        return None
+    return polyline([lat[i] for i in keep], [lon[i] for i in keep])
+
+
 # --- series ------------------------------------------------------------------
 
 

@@ -383,7 +383,13 @@ def week_start(day: dt.date) -> dt.date:
 def totals(
     acts: Iterable[dict], now: dt.datetime, tz: ZoneInfo, include_commutes: bool = True
 ) -> dict:
-    """This week's and last week's run/ride totals, km per day for 7 days."""
+    """Week totals (run, ride, hike) for this and last week, plus day summaries.
+
+    d7: km per day for the last 7 days, all sports.
+    d14: the 14 days from last week's Monday to this week's Sunday, each
+    (category of the day's longest activity by time, km that day) or None for
+    a rest day; days after today are "future".
+    """
     today = now.astimezone(tz).date()
     ws = week_start(today)
     lws = ws - dt.timedelta(days=7)
@@ -393,10 +399,15 @@ def totals(
         "lrun": [0.0, 0, 0.0],
         "lride": [0.0, 0, 0.0],
         # last week up to the same weekday and time, for a fair comparison
+        "hike": [0.0, 0, 0.0],
+        "lhike": [0.0, 0, 0.0],
         "lrun_td": 0.0,
         "lride_td": 0.0,
+        "lhike_td": 0.0,
     }
     d7 = [0.0] * 7
+    day_km = [0.0] * 14
+    day_main: list[tuple[float, str] | None] = [None] * 14
     now_offset = now - dt.datetime.combine(ws, dt.time(), tz)
     for a in acts:
         if a["start"] is None:
@@ -406,9 +417,14 @@ def totals(
         idx = (today - day).days
         if 0 <= idx < 7:
             d7[6 - idx] += a["dist"] / 1000
+        slot = (day - lws).days
+        if 0 <= slot < 14:
+            day_km[slot] += a["dist"] / 1000
+            if day_main[slot] is None or a["moving"] > day_main[slot][0]:
+                day_main[slot] = (a["moving"], a["cat"])
         if a["commute"] and not include_commutes:
             continue
-        if a["cat"] not in (RUN, RIDE):
+        if a["cat"] not in (RUN, RIDE, HIKE):
             continue
         if day >= ws:
             key = a["cat"]
@@ -422,6 +438,11 @@ def totals(
         out[key][1] += 1
         out[key][2] += a["moving"]
     out["d7"] = d7
+    today_slot = (today - lws).days
+    out["d14"] = [
+        "future" if i > today_slot else (None if m is None else (m[1], day_km[i]))
+        for i, m in enumerate(day_main)
+    ]
     return out
 
 

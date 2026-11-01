@@ -37,7 +37,7 @@ def test_full_payload_shape(model):
     ):
         assert k in a, k
     assert a["c"] == "ride" and a["su"] == 10 and len(a["rb"]) == 4
-    assert set(p["wk"]) == {"run", "ride", "lrun", "lride"}
+    assert set(p["wk"]) == {"run", "ride", "hike", "lrun", "lride", "lhike"}
     assert len(p["d7"].split(",")) == 7
     assert len(p["rec"]) == 5 and p["rec"][0][0] == "ride"
     assert p["w"]["tst"] == "PRODUCTIVE"
@@ -50,7 +50,8 @@ def test_typical_size(model):
 
 def test_fit_large_limit_keeps_finest(model):
     f = payload.fit(model, 9800)
-    assert f.fits and f.options.route_tol == 0.5 and f.options.hr_bins == 120
+    assert f.fits and f.options == payload.Options()  # nothing sacrificed
+    assert {"r", "p", "h", "spl"} <= set(f.payload["a"])
 
 
 def test_fit_small_limits(model):
@@ -98,3 +99,47 @@ def test_no_activity(model):
     p = payload.build(model)
     assert "a" not in p and "rec" not in p
     json.dumps(p)
+
+
+def test_polyline_matches_the_simplified_route(model):
+    from gtrmnl import encode
+
+    p = payload.build(model)
+    pts = encode.decode_polyline(p["a"]["p"])
+    s = model["activity"]["series"]
+    assert len(pts) >= 10
+    assert abs(pts[0][0] - s["lat"][0]) < 1e-4 and abs(pts[0][1] - s["lon"][0]) < 1e-4
+    assert abs(pts[-1][0] - s["lat"][-1]) < 1e-4 and abs(pts[-1][1] - s["lon"][-1]) < 1e-4
+    # Coarser than the 0.5 px SVG route: at least 1 px tolerance.
+    assert len(pts) <= p["a"]["r"].count("-") + p["a"]["r"].count(" ") + 1
+
+
+def test_polyline_is_dropped_first(model):
+    steps = payload.ladder(payload.Options())
+    assert next(steps) == payload.Options()  # the full payload is tried first
+    assert next(steps) == payload.Options(polyline=False)
+    assert "p" in payload.fit(model, 9800).payload["a"]
+    with_p = len(payload.body_bytes(payload.build(model)))
+    f = payload.fit(model, with_p - 1)
+    assert "p" not in f.payload["a"] and f.options.route_tol == 0.5
+
+
+def test_d14_calendar(model):
+    days = payload.build(model)["d14"].split(",")
+    assert len(days) == 14
+    # NOW is Sunday 2026-11-01: slots 0-6 last week, 7-13 this week, no future days.
+    assert "." not in days
+    assert days[13].startswith("b") and float(days[13][1:]) == 81.2  # today's gravel ride
+    assert days[11] == "r12.1"  # Friday's tempo run
+    assert "" in days  # rest days
+
+
+def test_recent_rows_carry_name_and_ascent(model):
+    rec = payload.build(model)["rec"]
+    assert all(len(r) == 6 for r in rec)
+    assert rec[0][4] == "Commute" and isinstance(rec[0][5], int)
+
+
+def test_hike_totals(cfg):
+    p = payload.build(build("hike", cfg))
+    assert p["wk"]["hike"][1] == 1 and p["wk"]["hike"][0] == 14.3

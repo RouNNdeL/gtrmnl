@@ -36,6 +36,7 @@
    297,
    24
   ],
+  "p": "odx}Hoof_CbBx\\~Gr`@xErh@`EtT|FdVdC`OrA`L~AnTPxKAnOo@lAu@}@?uAr@{EGmDwBiL}@iMwMehAcK__A",
   "h": "110,139,AECJLNRRWacjpprw0y47_9479924002wypllnnpljljnnplrpuwrwy247424994724_7ypw0002upplnnljnplernlppyuw0y04w2y47707479900uuy200r"
  },
  "wk": {
@@ -58,39 +59,60 @@
    60,
    1,
    60
+  ],
+  "hike": [
+   4.8,
+   1,
+   4000
+  ],
+  "lhike": [
+   0,
+   0,
+   0
   ]
  },
  "d7": "0,0,8.2,7.3,12.1,7.4,4.8",
+ "d14": ",,,b60,,r9,,,,r8.2,b7.3,r12.1,b7.4,h4.8",
  "rec": [
   [
    "ride",
    1793430000,
    7400,
-   1480
+   1480,
+   "Commute",
+   70
   ],
   [
    "run",
    1793340000,
    12100,
-   3667
+   3667,
+   "Tempo",
+   62
   ],
   [
    "ride",
    1793257200,
    7350,
-   1470
+   1470,
+   "Commute",
+   84
   ],
   [
    "run",
    1793167200,
    8200,
-   2485
+   2485,
+   "Recovery run",
+   46
   ],
   [
    "run",
    1792818000,
    9000,
-   2727
+   2727,
+   "Long run",
+   104
   ]
  ],
  "w": {

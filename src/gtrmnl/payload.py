@@ -18,7 +18,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from . import encode
-from .normalize import RIDE, RUN, split_unit_km, splits
+from .normalize import HIKE, RIDE, RUN, split_unit_km, splits
 
 SCHEMA_VERSION = 1
 ROUTE_TOLERANCES = (0.5, 0.75, 1.0, 1.5, 2.0)
@@ -32,6 +32,7 @@ class Options:
     hr_bins: int = 120  # 0 drops the HR chart
     recent: int = 5
     d7: bool = True
+    polyline: bool = True  # encoded route for the optional base map
 
 
 def dumps(obj: Any) -> str:
@@ -57,6 +58,30 @@ def _r1(x: float | None) -> float | None:
 def _clean(d: dict) -> dict:
     """Drop None values so missing data costs nothing and Liquid sees blank."""
     return {k: v for k, v in d.items() if v is not None}
+
+
+# One letter per category in d14: run, bike, hike, walk, swim, gym, ski, other.
+DAY_LETTER = {
+    "run": "r",
+    "ride": "b",
+    "hike": "h",
+    "walk": "w",
+    "swim": "s",
+    "strength": "g",
+    "ski": "k",
+    "other": "o",
+}
+
+
+def _day(d: Any) -> str:
+    """d14 entry: '' rest day, '.' future, else letter + km ('r8.2'; 'g' without km)."""
+    if d is None:
+        return ""
+    if d == "future":
+        return "."
+    cat, km = d
+    letter = DAY_LETTER.get(cat, "o")
+    return letter + (encode.compact_number(km) if km >= 0.05 else "")
 
 
 def activity_block(act: dict, opt: Options) -> dict:
@@ -101,6 +126,9 @@ def activity_block(act: dict, opt: Options) -> dict:
         enc = encode.route_svg(s["lat"], s["lon"], opt.route_tol)
         if enc:
             a["r"], a["rb"] = enc
+        if opt.polyline:
+            # Street-map detail does not need sub-pixel accuracy.
+            a["p"] = encode.route_polyline(s["lat"], s["lon"], max(opt.route_tol, 1.0))
 
     if opt.hr_bins and s.get("t"):
         pairs = [(t, h) for t, h in zip(s["t"], s["hr"], strict=True) if h is not None]
@@ -121,7 +149,7 @@ def build(model: dict, opt: Options = DEFAULT) -> dict:
 
     t = model["totals"]
     wk = {}
-    for cat in (RUN, RIDE):
+    for cat in (RUN, RIDE, HIKE):
         km, n, sec = t[cat]
         lkm, ln, _ = t["l" + cat]
         wk[cat] = [_r1(km), n, round(sec)]
@@ -129,11 +157,20 @@ def build(model: dict, opt: Options = DEFAULT) -> dict:
     p["wk"] = wk
     if opt.d7:
         p["d7"] = ",".join(encode.compact_number(x) for x in t["d7"])
+        p["d14"] = ",".join(_day(d) for d in t["d14"])
 
     rec = model.get("recent") or []
     if opt.recent and rec:
         p["rec"] = [
-            [r["cat"], r["start"], round(r["dist"]), round(r["moving"])] for r in rec[: opt.recent]
+            [
+                r["cat"],
+                r["start"],
+                round(r["dist"]),
+                round(r["moving"]),
+                (r["name"] or "")[:40],
+                _i(r["elev"]) or 0,
+            ]
+            for r in rec[: opt.recent]
         ]
 
     w = model.get("wellness") or {}
@@ -160,11 +197,17 @@ def build(model: dict, opt: Options = DEFAULT) -> dict:
 def ladder(start: Options) -> Iterator[Options]:
     """Successively smaller payload options, in the agreed order of sacrifice.
 
-    1. coarsen the route (0.5 -> 2 px); 2./3. thumbnails and elevation
+    0. drop the base-map polyline; 1. coarsen the route (0.5 -> 2 px);
+    2./3. thumbnails and elevation
     (not implemented yet); 4. fewer splits; 5. HR chart 120 -> 60 bins;
     6. fewer recent activities; then emergency steps.
     """
     o = start
+    if o.polyline:
+        yield o  # everything, including the base-map polyline
+        # 0. drop the polyline: without it the markup draws the route line.
+        o = replace(o, polyline=False)
+        yield o
     for tol in ROUTE_TOLERANCES:
         if o.route_tol is not None and tol >= o.route_tol:
             o = replace(o, route_tol=tol)
