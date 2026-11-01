@@ -110,7 +110,7 @@ Actions current.
 
 CI (`.github/workflows/ci.yml`) runs ruff, pytest and a check that
 `trmnl/fixtures` match the generator. `image.yml` builds amd64 + arm64 on every
-PR without pushing, and on `main` and `v*` tags pushes to
+PR without pushing, and on `master` and `v*` tags pushes to
 `ghcr.io/rounndel/gtrmnl` (`latest`, semver, `sha-<commit>`) with an SBOM and
 provenance attestation. **After the first push, make the GHCR package public**
 (package settings), or TrueNAS cannot pull it anonymously.
