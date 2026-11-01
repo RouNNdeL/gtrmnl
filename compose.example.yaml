@@ -1,0 +1,21 @@
+# Example for `docker compose` or a TrueNAS "Install via YAML" custom app.
+services:
+  gtrmnl:
+    image: ghcr.io/rounndel/gtrmnl:0.1.0   # pin a release tag
+    restart: unless-stopped
+    user: "568:568"                         # owner of the /data dataset
+    environment:
+      TZ: Europe/Warsaw
+      INTERVAL_MINUTES: "15"
+      # Prefer the _FILE variant so the URL is not visible in `docker inspect`:
+      TRMNL_WEBHOOK_URL_FILE: /data/webhook_url
+      # TRMNL_WEBHOOK_URL: https://trmnl.com/api/custom_plugins/<uuid>
+    volumes:
+      - /mnt/tank/apps/gtrmnl:/data         # host-path dataset
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # No ports: the collector only makes outbound HTTPS requests.

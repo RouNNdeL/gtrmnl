@@ -1,0 +1,65 @@
+<div class="layout layout--row layout--left layout--stretch-y">
+<div class="gt" style="display: grid; grid-template-columns: 150px 1fr 196px; grid-template-rows: 100%; column-gap: 14px;">
+
+  <div class="gt-map">
+    {%- if a.r %}
+    {%- assign vb_w = a.rb[0] | plus: 16 %}{% assign vb_h = a.rb[1] | plus: 16 %}
+    <svg viewBox="-8 -8 {{ vb_w }} {{ vb_h }}" preserveAspectRatio="xMidYMid meet">
+      <path class="gt-route" d="{{ a.r }}" stroke-width="8"/>
+      <circle cx="{{ a.r | remove_first: 'M' | split: 'l' | first | split: ' ' | first }}" cy="{{ a.r | remove_first: 'M' | split: 'l' | first | split: ' ' | last }}" r="13" fill="#fff" stroke="#000" stroke-width="7"/>
+      <rect x="{{ a.rb[2] | minus: 10 }}" y="{{ a.rb[3] | minus: 10 }}" width="20" height="20" fill="#000"/>
+    </svg>
+    {%- elsif has_a %}
+    <div class="gt-nomap">{% render "gt_icon", c: a.c, size: 56 %}<span class="label label--small">No GPS</span></div>
+    {%- else %}
+    <div class="gt-nomap"><span class="label label--small">No activities</span></div>
+    {%- endif %}
+  </div>
+
+  <div class="gt-col" style="gap: 6px; justify-content: center;">
+    {%- if auth_err %}
+    <div class="gt-banner"><span class="label">Garmin login expired: run gtrmnl login</span></div>
+    {%- elsif stale %}
+    <div class="gt-banner"><span class="label">No update since {{ ts_hh }}:{{ ts_mi }} ({{ age_h }} h)</span></div>
+    {%- endif %}
+    {%- if has_a %}
+    <div class="gt-row">
+      {% render "gt_icon", c: a.c, size: 28 %}
+      <div class="gt-col" style="flex: 1;">
+        <span class="title title--small gt-ellip">{{ a_name }}</span>
+        <span class="label label--small">{% render "gt_when", t: a.st, now: now, off: a_off %}</span>
+      </div>
+    </div>
+    <div class="gt-stats" style="row-gap: 2px;">
+      <div class="gt-stat"><span class="value value--xsmall">{{ s1v }}<span class="gt-unit">{{ s1u }}</span></span><span class="label label--small">{{ s1l }}</span></div>
+      <div class="gt-stat"><span class="value value--xsmall">{{ s2v }}</span><span class="label label--small">Moving</span></div>
+      <div class="gt-stat"><span class="value value--xsmall">{{ s3v }}<span class="gt-unit">{{ s3u }}</span></span><span class="label label--small">{{ s3l }}</span></div>
+    </div>
+    {%- endif %}
+    {%- if hr_n > 1 %}
+    {%- assign hr_w = hr_n | minus: 1 %}
+    <div class="gt-chart" style="height: 34px; flex: none;">
+      <svg viewBox="0 -2 {{ hr_w }} 67" preserveAspectRatio="none">
+        <polygon class="gt-hr-fill" points="0,65 {{ hr_pts }}{{ hr_w }},65"/>
+        <polyline class="gt-hr" points="{{ hr_pts }}"/>
+      </svg>
+    </div>
+    {%- endif %}
+  </div>
+
+  <div class="gt-col" style="gap: 6px; justify-content: center;">
+    <div class="gt-between"><span class="label label--small">This week</span><span class="label label--small gt-dim">last</span></div>
+    <div class="gt-between"><span class="value value--xsmall">{{ wk.run[0] | default: 0 }}<span class="gt-unit">km run</span></span><span class="label label--small">{{ wk.lrun[2] | default: 0 }}</span></div>
+    <div class="gt-between"><span class="value value--xsmall">{{ wk.ride[0] | default: 0 }}<span class="gt-unit">km ride</span></span><span class="label label--small">{{ wk.lride[2] | default: 0 }}</span></div>
+    <div class="gt-tiles" style="grid-template-columns: repeat(3, 1fr); gap: 6px;">
+      <div class="gt-tile" style="padding: 2px 4px;"><span class="value value--xsmall">{{ w.bb | default: "-" }}</span><span class="label label--small">Batt.</span></div>
+      <div class="gt-tile" style="padding: 2px 4px;"><span class="value value--xsmall">{{ w.sl | default: "-" }}</span><span class="label label--small">Sleep</span></div>
+      <div class="gt-tile" style="padding: 2px 4px;"><span class="value value--xsmall">{{ w.tr | default: "-" }}</span><span class="label label--small">Ready</span></div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="title_bar">
+  <span class="title">Garmin</span>
+  <span class="instance">{{ st_name }}{% if w.rc %} · rest {{ w.rc }}h{% endif %}</span>
+</div>

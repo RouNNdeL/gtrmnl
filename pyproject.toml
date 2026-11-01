@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gtrmnl"
+version = "0.1.0"
+description = "Collects Garmin Connect data and pushes it to a TRMNL webhook plugin"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "garminconnect>=0.3.20,<0.4",
+    "requests>=2.33",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+gtrmnl = "gtrmnl.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/gtrmnl/synth.py" = ["S311"]
+"tests/**" = ["S", "B", "RUF007"]

@@ -1,0 +1,68 @@
+<div class="layout layout--col layout--top layout--stretch-x">
+<div class="gt gt-col" style="gap: 8px;">
+  {%- if auth_err %}
+  <div class="gt-banner"><span class="label">Garmin login expired: run gtrmnl login</span></div>
+  {%- elsif stale %}
+  <div class="gt-banner"><span class="label">No update since {{ ts_hh }}:{{ ts_mi }} ({{ age_h }} h)</span></div>
+  {%- endif %}
+
+  <div class="gt-map" style="height: {% if auth_err or stale %}104{% else %}130{% endif %}px; flex: none;">
+    {%- if a.r %}
+    {%- assign vb_w = a.rb[0] | plus: 16 %}{% assign vb_h = a.rb[1] | plus: 16 %}
+    <svg viewBox="-8 -8 {{ vb_w }} {{ vb_h }}" preserveAspectRatio="xMidYMid meet">
+      <path class="gt-route" d="{{ a.r }}" stroke-width="7"/>
+      <circle cx="{{ a.r | remove_first: 'M' | split: 'l' | first | split: ' ' | first }}" cy="{{ a.r | remove_first: 'M' | split: 'l' | first | split: ' ' | last }}" r="11" fill="#fff" stroke="#000" stroke-width="6"/>
+      <rect x="{{ a.rb[2] | minus: 9 }}" y="{{ a.rb[3] | minus: 9 }}" width="18" height="18" fill="#000"/>
+    </svg>
+    {%- elsif has_a %}
+    <div class="gt-nomap">{% render "gt_icon", c: a.c, size: 56 %}<span class="label">No GPS track</span></div>
+    {%- else %}
+    <div class="gt-nomap"><span class="label">No activities yet</span></div>
+    {%- endif %}
+  </div>
+
+  {%- if has_a %}
+  <div class="gt-row">
+    {% render "gt_icon", c: a.c, size: 32 %}
+    <div class="gt-col" style="flex: 1;">
+      <span class="title title--small gt-ellip">{{ a_name }}</span>
+      <span class="label label--small">{% render "gt_when", t: a.st, now: now, off: a_off %}</span>
+    </div>
+  </div>
+  <div class="gt-stats">
+    <div class="gt-stat"><span class="value value--xsmall">{{ s1v }}<span class="gt-unit">{{ s1u }}</span></span><span class="label label--small">{{ s1l }}</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ s2v }}</span><span class="label label--small">Moving</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ s3v }}<span class="gt-unit">{{ s3u }}</span></span><span class="label label--small">{{ s3l }}</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ a.hr | default: "-" }}</span><span class="label label--small">Avg HR</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ s5v }}<span class="gt-unit">{{ s5u }}</span></span><span class="label label--small">{{ s5l }}</span></div>
+    <div class="gt-stat"><span class="value value--xsmall">{{ a.ld | default: "-" }}</span><span class="label label--small">Load</span></div>
+  </div>
+  {%- endif %}
+
+  {%- if hr_n > 1 %}
+  {%- assign hr_w = hr_n | minus: 1 %}
+  <div class="gt-col" style="flex: 1; min-height: 30px;">
+    <div class="gt-between"><span class="label label--small">Heart rate</span><span class="label label--small">{{ hr_lo }}-{{ hr_hi }}</span></div>
+    <div class="gt-chart" style="flex: 1; min-height: 0;">
+      <svg viewBox="0 -2 {{ hr_w }} 67" preserveAspectRatio="none">
+        <polygon class="gt-hr-fill" points="0,65 {{ hr_pts }}{{ hr_w }},65"/>
+        <polyline class="gt-hr" points="{{ hr_pts }}"/>
+      </svg>
+    </div>
+  </div>
+  {%- else %}
+  <div style="flex: 1;"></div>
+  {%- endif %}
+
+  <div class="gt-tiles" style="grid-template-columns: repeat(4, 1fr); flex: none;">
+    <div class="gt-tile"><span class="value value--xsmall">{{ wk.run[0] | default: 0 }}</span><span class="label label--small">Run km</span></div>
+    <div class="gt-tile"><span class="value value--xsmall">{{ wk.ride[0] | default: 0 }}</span><span class="label label--small">Ride km</span></div>
+    <div class="gt-tile"><span class="value value--xsmall">{{ w.bb | default: "-" }}</span><span class="label label--small">Battery</span></div>
+    <div class="gt-tile"><span class="value value--xsmall">{{ w.tr | default: "-" }}</span><span class="label label--small">Ready</span></div>
+  </div>
+</div>
+</div>
+<div class="title_bar">
+  <span class="title">Garmin</span>
+  <span class="instance">{{ st_name }}</span>
+</div>
