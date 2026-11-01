@@ -29,13 +29,18 @@ the same as the private plugin's `settings.yml` minus its instance id:
 The route line is pre-projected SVG path data: no JavaScript, identical
 everywhere. The two map options draw the route over OpenStreetMap tiles with
 the framework's map engine (`TRMNLMaps`, MapLibre from TRMNL's mirror, tiles
-from maps.trmnl.com, no key), from the encoded polyline `a.p`. If a payload
-had to drop `a.p` to fit the size limit, the markup falls back to the line.
+from maps.trmnl.com, no key), from the encoded polyline `a.p`: "street map" is
+the `minimal` preset without buildings and with only major place names,
+"simple map" the `outline` preset (coast, water, main roads). The track is
+drawn 7 px wide over the framework's contrast casing. If a payload had to drop
+`a.p` to fit the size limit, the markup falls back to the line.
 
 ### Screens
 
 Every full-size screen keeps the activity list on the left (framework
-`item`s with sport icons) and puts the chosen panel on the right:
+`item`s; the sport icon sits inline in the title, at the title's size) and puts
+the chosen panel on the right. The title bar carries Garmin's logo with
+"Connect".
 
 - **Latest activity:** route plus 6 stat tiles (8 without a route), chosen per
   sport (pace for runs, speed for rides, ascent for hikes, calories and heart
@@ -44,12 +49,15 @@ Every full-size screen keeps the activity list on the left (framework
   slowest split marked, or a summary for long activities.
 - **Heart rate:** HR over moving time (timer time for hikes) and time in zones.
 - **Week:** a Monday-to-Sunday calendar of last week and this week with the
-  day's sport icon and km, and run/ride/hike km this week vs last week.
-- **Recovery:** body battery, sleep, HRV, training readiness, recovery time,
-  training status with VO2 max and load.
+  day's sport icon and km, and per sport this week's km (solid) next to last
+  week's (framework dither), with the change against last week at the same
+  point in the week.
+- **Recovery:** body battery, sleep score and training readiness as framework
+  progress bars, then HRV, recovery time and training status with VO2 max.
 
 The half and quadrant layouts show a compact version of the same panel.
-Icons are Material Design Icons, generated into `shared.liquid` by
+Icons (Material Design Icons) and the Garmin logo (Simple Icons, CC0 SVG;
+the logo is Garmin's trademark) are generated into `shared.liquid` by
 `tools/icons.py`; do not edit that block by hand.
 
 ## Render locally
@@ -104,4 +112,5 @@ or an icon has no path data.
    shows one screen at a time; change the Screen setting to switch. (The
    collector pushes to a single webhook, so plugin copies would not get data.)
 
-Icons are from Material Design Icons (Apache 2.0).
+Icons are from Material Design Icons (Apache 2.0). The Garmin logo comes from
+Simple Icons (CC0); Garmin and Garmin Connect are trademarks of Garmin Ltd.

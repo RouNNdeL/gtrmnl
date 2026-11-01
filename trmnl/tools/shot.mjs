@@ -97,6 +97,8 @@ for (const { name } of index) {
         p.push(`${cls}: view overflows (${view.scrollWidth}x${view.scrollHeight} > ${view.clientWidth}x${view.clientHeight})`);
       }
       for (const el of view.querySelectorAll("*")) {
+        // Inside a deliberately clipped box only the box itself must fit.
+        if (el.parentElement && el.parentElement.closest(".gt-clip")) continue;
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0) continue;
         if (r.left < vr.left - 1 || r.top < vr.top - 1 || r.right > vr.right + 1 || r.bottom > vr.bottom + 1) {

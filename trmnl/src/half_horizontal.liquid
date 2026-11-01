@@ -23,7 +23,7 @@
       <div class="gt-col" style="flex: 1; gap: 6px; justify-content: center;">
         {%- assign el = a.el | default: 0 %}
         {%- assign km = 0 %}{% if a_has_d %}{% assign km = a_km %}{% endif %}
-        {% render "gt_item", c: a.c, name: a_name, km: km, dur: a_dur, el: el, t: a.st, now: now, off: a_off, noff: off, em: 3, icon: 24 %}
+        {% render "gt_item", c: a.c, name: a_name, km: km, dur: a_dur, el: el, t: a.st, now: now, off: a_off, noff: off %}
         <div class="grid grid--cols-{% if show_route %}3{% else %}4{% endif %} gap--small">
           {%- if show_route %}{% assign stat_max = 3 %}{% else %}{% assign stat_max = 4 %}{% endif %}
           {%- for i in (1..stat_max) %}{% assign k = i | minus: 1 %}{% if k >= st_n %}{% break %}{% endif %}
@@ -87,7 +87,7 @@
         {%- assign zp = z | times: 100.0 | divided_by: z_total | round %}
         <div class="flex" style="align-items: center; gap: 6px;">
           <span class="label label--small" style="width: 22px;">Z{{ zn }}</span>
-          <div style="flex: 1;"><div class="gt-hbar{% if zn < 3 %} gt-hbar--last{% endif %}" style="width: {{ zw }}%; height: 10px;"></div></div>
+          <div style="flex: 1;"><div class="gt-hbar {% if zn < 3 %}bg--gray-45{% else %}bg--black{% endif %}" style="width: {{ zw }}%; height: 10px;"></div></div>
           <span class="label label--small" style="width: 34px; text-align: right;">{{ zp }}%</span>
         </div>
       {%- endfor %}
@@ -130,45 +130,35 @@
         {%- endfor %}
       </div>
     </div>
-    <div class="gt-col" style="width: 230px; flex: none; gap: 6px; justify-content: center;">
+    <div class="flex" style="width: 280px; flex: none; gap: 8px; align-items: flex-end;">
       {%- for cat in wk_cats %}
         {%- assign lk = "l" | append: cat %}
         {%- assign tw = wk[cat][0] | default: 0 %}
         {%- assign lw = wk[lk][0] | default: 0 %}
+        {%- assign ltd = wk[lk][2] | default: 0 %}
         {%- if tw > 0 or lw > 0 %}
-        <div class="flex" style="align-items: center; gap: 8px;">
-          {% render "gt_sym", n: cat, size: 22 %}
-          <span class="value value--xsmall value--tnums gt-nowrap" style="flex: 1;">{{ tw }}<span class="gt-unit">km</span></span>
-          <span class="label label--small gt-nowrap">last {{ lw }}</span>
-        </div>
+        {% render "gt_cmp", c: cat, tw: tw, lw: lw, ltd: ltd, h: 60 %}
         {%- endif %}
       {%- endfor %}
     </div>
 
   {%- when "recovery" %}
-    {%- capture bb_l %}Battery{% if w.bbh %} · {{ w.bbh }}{% endif %}{% endcapture %}
-    {%- capture sl_l %}Sleep{% if w.ss %} · {% render "gt_dur", s: w.ss %}{% endif %}{% endcapture %}
-    {%- assign st_v_ = st_name | default: "-" %}
-    <div class="gt-col" style="flex: 1; gap: 8px; justify-content: center;">
-      <div class="grid grid--cols-5 gap--small">
-        {% render "gt_stat", n: "battery", v: w.bb, u: "", l: bb_l, size: "small", icon: 22 %}
-        {% render "gt_stat", n: "sleep", v: w.sl, u: "", l: sl_l, size: "small", icon: 22 %}
-        {% render "gt_stat", n: "hrv", v: w.hv, u: "ms", l: "HRV", size: "small", icon: 22 %}
-        {% render "gt_stat", n: "readiness", v: w.tr, u: "", l: "Readiness", size: "small", icon: 22 %}
-        {% render "gt_stat", n: "recovery", v: w.rc, u: "h", l: "Recovery", size: "small", icon: 22 %}
-      </div>
-      <div class="flex" style="gap: 8px; align-items: center;">
-        {% render "gt_sym", n: "status", size: 22 %}
-        <span class="title title--small">{{ st_v_ }}</span>
-        <span class="label label--small">VO2 max {{ w.vo | default: "-" }}{% if w.al %} · load {{ w.al }}{% endif %}{% if hrv_name != "" %} · HRV {{ hrv_name }}{% endif %}</span>
-      </div>
+    {%- capture bb_n %}{% if w.bbh %}high {{ w.bbh }}{% endif %}{% endcapture %}
+    {%- capture sl_n %}{% if w.ss %}{% render "gt_dur", s: w.ss %}{% endif %}{% endcapture %}
+    <div class="gt-col" style="flex: 1; gap: 4px; justify-content: center;">
+      {% render "gt_meter", n: "battery", l: "Body battery", v: w.bb, note: bb_n, sz: "base" %}
+      {% render "gt_meter", n: "sleep", l: "Sleep", v: w.sl, note: sl_n, sz: "base" %}
+      {% render "gt_meter", n: "readiness", l: "Readiness", v: w.tr, note: "", sz: "base" %}
+    </div>
+    <div class="gt-col" style="width: 210px; flex: none; gap: 6px; justify-content: center;">
+      {%- capture hv_l %}HRV{% if hrv_name != "" %} · {{ hrv_name }}{% endif %}{% endcapture %}
+      {% render "gt_stat", n: "hrv", v: w.hv, u: "ms", l: hv_l, size: "xsmall", icon: 20 %}
+      {% render "gt_stat", n: "recovery", v: w.rc, u: "h", l: "Recovery", size: "xsmall", icon: 20 %}
+      {%- assign st_v_ = st_name | default: "-" %}
+      {% render "gt_stat", n: "status", v: st_v_, u: "", l: "Training status", size: "xsmall", icon: 20 %}
     </div>
   {%- endcase %}
   </div>
 </div>
 </div>
-<div class="title_bar">
-  {% render "gt_sym", n: a.c, size: 22 %}
-  <span class="title">Garmin</span>
-  <span class="instance">{{ screen_name }}</span>
-</div>
+{% render "gt_bar", instance: screen_name %}
