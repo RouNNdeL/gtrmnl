@@ -44,15 +44,21 @@ def _int(name: str, default: int, minimum: int = 0) -> int:
     return val
 
 
-def _webhook_url() -> str | None:
-    path = os.environ.get("TRMNL_WEBHOOK_URL_FILE")
+def secret(name: str) -> tuple[str | None, str | None]:
+    """Value of NAME_FILE (preferred) or NAME, and which one supplied it."""
+    path = os.environ.get(f"{name}_FILE", "").strip()
     if path:
         try:
-            url = Path(path).read_text(encoding="utf-8").strip()
+            val = Path(path).read_text(encoding="utf-8").strip()
         except OSError as e:
-            raise ConfigError(f"cannot read TRMNL_WEBHOOK_URL_FILE: {e.strerror}") from None
-    else:
-        url = os.environ.get("TRMNL_WEBHOOK_URL", "").strip()
+            raise ConfigError(f"cannot read {name}_FILE: {e.strerror}") from None
+        return (val or None), f"{name}_FILE"
+    val = os.environ.get(name, "").strip()
+    return (val or None), (name if val else None)
+
+
+def _webhook_url() -> str | None:
+    url, _ = secret("TRMNL_WEBHOOK_URL")
     if not url:
         return None
     if not url.startswith("https://"):
@@ -72,6 +78,11 @@ class Config:
     recent_count: int = 5
     latest_skip_commutes: bool = False
     totals_include_commutes: bool = True
+    # Optional unattended Garmin login (see bootstrap.py). Never logged.
+    garmin_tokens: str | None = field(default=None, repr=False)
+    garmin_email: str | None = field(default=None, repr=False)
+    garmin_password: str | None = field(default=None, repr=False)
+    garmin_password_source: str | None = None
 
     @property
     def token_dir(self) -> Path:
@@ -91,6 +102,7 @@ class Config:
 
     @classmethod
     def from_env(cls) -> Config:
+        password, pw_source = secret("GARMIN_PASSWORD")
         tz_name = os.environ.get("TZ", "Europe/Warsaw").strip() or "Europe/Warsaw"
         try:
             tz = ZoneInfo(tz_name)
@@ -107,4 +119,8 @@ class Config:
             recent_count=_int("RECENT_COUNT", 5, minimum=0),
             latest_skip_commutes=_bool("LATEST_SKIP_COMMUTES", False),
             totals_include_commutes=_bool("TOTALS_INCLUDE_COMMUTES", True),
+            garmin_tokens=secret("GARMIN_TOKENS")[0],
+            garmin_email=os.environ.get("GARMIN_EMAIL", "").strip() or None,
+            garmin_password=password,
+            garmin_password_source=pw_source,
         )

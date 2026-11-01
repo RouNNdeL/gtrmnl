@@ -19,7 +19,7 @@ Garmin Connect ──(python-garminconnect)──> gtrmnl collector ──(HTTPS
 | Command | What it does |
 |---|---|
 | `gtrmnl login` | Interactive: email, password (getpass, never stored), MFA code. Writes tokens to `/data/tokens` (0700/0600). |
-| `gtrmnl run` | Service loop. Without tokens it logs "run `gtrmnl login`" and waits. After an auth failure it waits for a new login. |
+| `gtrmnl run` | Service loop. Without tokens it tries the environment (below), otherwise logs "run `gtrmnl login`" and waits. After an auth failure it waits for a new login or new credentials. |
 | `gtrmnl once [--dry-run] [--force]` | One cycle. `--dry-run` prints the payload and its size and pushes nothing. |
 | `gtrmnl fixtures [--out DIR]` | Saves sanitized raw responses and payloads (ids removed, tracks moved to a fixed origin). Review before committing. |
 | `gtrmnl health` | Docker healthcheck: fails after an auth failure or when the last success is older than 2 intervals + 5 min. |
@@ -46,6 +46,39 @@ for at least 15 min. If Garmin auth dies it sends `err: "auth"` once with
 | `TOTALS_INCLUDE_COMMUTES` | true | Count commutes in the week totals |
 | `DATA_DIR` | /data | Tokens, state, cache |
 | `LOG_LEVEL` | INFO | |
+| `GARMIN_TOKENS_FILE` | | Optional: a `garmin_tokens.json` to seed `/data/tokens` (or `GARMIN_TOKENS` with the JSON itself) |
+| `GARMIN_EMAIL` | | Optional: for an unattended password login, and the default for `gtrmnl login` |
+| `GARMIN_PASSWORD_FILE` | | Optional: file with the Garmin password (or `GARMIN_PASSWORD`, which logs a warning) |
+
+Every secret has a `_FILE` variant that wins over the plain variable. Use
+the `_FILE` form so the value does not show up in `docker inspect`.
+
+### Garmin login: three ways
+
+Tokens live in `/data/tokens/garmin_tokens.json` and refresh on their own. A
+new login is needed only when Garmin revokes them. Get the first set in one of
+these ways:
+
+1. **Interactive (default):** open the container shell and run
+   `gtrmnl login`. Works with MFA. Nothing but the tokens is stored.
+2. **Seed tokens:** run `gtrmnl login` anywhere (for example
+   `docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD/t:/data" ghcr.io/rounndel/gtrmnl login`), then
+   mount the resulting `garmin_tokens.json` and point `GARMIN_TOKENS_FILE` at
+   it. The collector copies it into `/data/tokens` on start. Changing the
+   seed file (new content) seeds again; the same file is not re-applied, so it
+   never overwrites the refreshed copy. Works with MFA, and the password never
+   reaches the deployment.
+3. **Password:** set `GARMIN_EMAIL` and `GARMIN_PASSWORD_FILE`. When there
+   are no working tokens the collector logs in once and saves tokens, then
+   logs a reminder to remove the variables. Accounts with **MFA cannot use
+   this**: the login stops with an "MFA" error instead of waiting for a code.
+   A rejected password is not retried until the container restarts, so a typo
+   cannot lock the account. Nothing derived from the password is written to
+   disk. If the variables stay set, the collector logs in again by itself
+   after Garmin revokes the tokens, at the cost of keeping the password in
+   the app's configuration (python-garminconnect advises against that).
+
+If both a seed and a password are set, the seed is used first.
 
 ### TrueNAS custom app
 
@@ -55,7 +88,8 @@ for at least 15 min. If Garmin auth dies it sends `err: "auth"` once with
 3. Install via YAML with [compose.example.yaml](compose.example.yaml): image
    `ghcr.io/rounndel/gtrmnl:<tag>`, read-only root, tmpfs `/tmp`, all
    capabilities dropped, `no-new-privileges`, no ports.
-4. Open the container shell and run `gtrmnl login` once.
+4. Log in: open the container shell and run `gtrmnl login` once, or use one of
+   the environment options above.
 5. `gtrmnl once --dry-run` shows what will be sent.
 
 The image runs as a non-root user (UID 568, override with `user:`), contains

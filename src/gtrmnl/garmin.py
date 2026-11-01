@@ -23,6 +23,10 @@ class AuthError(Exception):
     """Tokens are missing, expired or revoked: run `gtrmnl login`."""
 
 
+class MfaRequired(AuthError):
+    """The account asks for an MFA code and nobody is there to type it."""
+
+
 class TransientError(Exception):
     """Network trouble or rate limiting; try again next interval."""
 
@@ -50,23 +54,66 @@ def connect(token_dir: Path):
     return client
 
 
-def interactive_login(
+def _prepare_dir(token_dir: Path) -> None:
+    token_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(token_dir, 0o700)
+
+
+def password_login(
     token_dir: Path,
     email: str,
     password: str,
-    ask_mfa: Callable[[], str],
+    ask_mfa: Callable[[], str] | None = None,
 ) -> None:
-    """Full login with credentials and optional MFA; writes tokens only."""
+    """Full login with credentials; writes tokens only, never the password.
+
+    Without `ask_mfa` (unattended) an account that wants an MFA code raises
+    MfaRequired instead of blocking.
+    """
     gc = _lib()
-    token_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(token_dir, 0o700)
+    _prepare_dir(token_dir)
     client = gc.Garmin(email, password, return_on_mfa=True)
-    status, state = client.login()
-    if status == "needs_mfa":
-        client.resume_login(state, ask_mfa().strip())
+    try:
+        status, state = client.login()
+        if status == "needs_mfa":
+            if ask_mfa is None:
+                raise MfaRequired(
+                    "the account needs an MFA code: run `gtrmnl login` or seed tokens "
+                    "with GARMIN_TOKENS_FILE"
+                )
+            client.resume_login(state, ask_mfa().strip())
+    except gc.GarminConnectAuthenticationError as e:
+        raise AuthError(str(e)) from None
+    except gc.GarminConnectTooManyRequestsError as e:
+        raise TransientError(f"rate limited: {e}") from None
+    except gc.GarminConnectConnectionError as e:
+        raise TransientError(f"connection error: {type(e).__name__}") from None
     client.client.dump(str(token_dir))
     # Prove the stored tokens work on their own.
-    gc.Garmin().login(str(token_dir))
+    connect(token_dir)
+
+
+# Kept for the interactive `gtrmnl login` command.
+def interactive_login(
+    token_dir: Path, email: str, password: str, ask_mfa: Callable[[], str]
+) -> None:
+    password_login(token_dir, email, password, ask_mfa)
+
+
+def seed_tokens(token_dir: Path, tokens_json: str) -> None:
+    """Write tokens produced elsewhere (a garmin_tokens.json) into the store.
+
+    The library parses and validates them and writes the file 0600 in a 0700
+    directory, refusing symlinks. From then on it refreshes them in place.
+    """
+    gc = _lib()
+    client = gc.Garmin()
+    try:
+        client.client.loads(tokens_json)
+    except Exception:  # the library wraps parse errors; never echo token text
+        raise AuthError("GARMIN_TOKENS is not a valid garmin_tokens.json") from None
+    _prepare_dir(token_dir)
+    client.client.dump(str(token_dir))
 
 
 def _call(fn: Callable[..., Any], *args: Any, **kw: Any) -> Any:

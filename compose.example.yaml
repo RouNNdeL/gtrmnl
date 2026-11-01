@@ -10,6 +10,10 @@ services:
       # Prefer the _FILE variant so the URL is not visible in `docker inspect`:
       TRMNL_WEBHOOK_URL_FILE: /data/webhook_url
       # TRMNL_WEBHOOK_URL: https://trmnl.com/api/custom_plugins/<uuid>
+      # Garmin login without a shell (optional, see README "Garmin login"):
+      # GARMIN_TOKENS_FILE: /run/secrets/garmin_tokens.json  # tokens from `gtrmnl login`
+      # GARMIN_EMAIL: you@example.com                         # or a password login,
+      # GARMIN_PASSWORD_FILE: /run/secrets/garmin_password    # accounts without MFA only
     volumes:
       - /mnt/tank/apps/gtrmnl:/data         # host-path dataset
     read_only: true
