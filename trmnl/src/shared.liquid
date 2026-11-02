@@ -108,9 +108,8 @@ Args: c, name, km, dur, el, t, now, off, noff.
 {% endcomment %}<div class="item item--emphasis-2">
   <div class="meta"></div>
   <div class="content gt-clip">
-    {%- comment %} The icon keeps the title's size; only a long name shrinks to fit
-    (framework data-fit-value), inside a box one title line high. {% endcomment %}
-    <span class="title gt-title-row">{% render "gt_sym", n: c, size: "1em" %}<span class="gt-name-box gt-clip"><span class="gt-name" data-fit-value="true">{{ name }}</span></span></span>
+    {%- comment %} One title size for every name; a long one ends in an ellipsis. {% endcomment %}
+    <span class="title gt-clip">{% render "gt_sym", n: c, size: "1em" %}<span class="gt-name">{{ name }}</span></span>
     <span class="description gt-clip">{% if km > 0 %}{{ km }} km / {% endif %}{{ dur }}{% if el > 0 %} / {{ el }} m{% endif %}</span>
     <div class="flex gap--small"><span class="label label--small label--underline">{% render "gt_when", t: t, now: now, off: off, noff: noff %}</span></div>
   </div>
@@ -538,9 +537,6 @@ getAttribute: no JavaScript string escaping (it may contain backslashes). {% end
   .gt-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .gt-sym { display: block; fill: currentColor; flex: none; }
   .title .gt-sym { display: inline-block; vertical-align: -0.12em; margin-right: 0.3em; }
-  .gt-title-row { display: flex; align-items: center; max-width: 100%; }
-  .gt-title-row .gt-sym { flex: none; }
-  .gt-name-box { flex: 1 1 auto; min-width: 0; height: 1.3em; display: flex; align-items: center; }
   .gt-logo { display: block; fill: currentColor; }
   .gt-meter-val { display: flex; align-items: baseline; gap: 8px; }
   /* The logo's box includes the delta above the N, which pushes the letters
@@ -552,7 +548,7 @@ getAttribute: no JavaScript string escaping (it may contain backslashes). {% end
   .gt-cmp-vals { display: flex; justify-content: center; gap: 6px; }
   .gt-cmp-vals .label { width: 38%; max-width: 64px; text-align: center; white-space: nowrap; }
   .gt-nowrap { white-space: nowrap; }
-  .gt-clip { white-space: nowrap; overflow: hidden; max-width: 100%; }
+  .gt-clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .gt-unit { font-size: 55%; margin-left: 2px; }
   .gt-list .item + .item { margin-top: 8px; }
   .gt-route-box { position: relative; min-height: 0; overflow: hidden; }
